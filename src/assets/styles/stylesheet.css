@@ -26,9 +26,10 @@
     --f-size-h5: clamp();
     --f-size-h6: clamp();
 
-    --c-primary: ;
-    --c-secondary: ;
-    --c-tertiary: ;
+    --c-primary: hsl(231, 62%, 17%);
+    --c-secondary: hsl(40, 39%, 86%);
+    --c-light: hsl(0, 0%, 96%);
+    --c-dark: hsl(0, 0%, 7%);
 
     --c-success-h: 142;
     --c-success-s: 60%;
@@ -38,9 +39,6 @@
 
     --c-error-h: 0;
     --c-error-s: 70%;
-
-    --c-light: hsl(0, 0%, 96%);
-    --c-dark: hsl(0, 0%, 7%);
 
     --lh-p: 1.6;
     --lh-h: 1.4;
