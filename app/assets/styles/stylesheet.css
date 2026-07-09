@@ -1,0 +1,216 @@
+@font-face {
+  font-family: "satoshi";
+  src: url("/fonts/satoshi/WEB/fonts/Satoshi-Black.woff2") format("woff2"),
+    url("/fonts/satoshi/WEB/fonts/Satoshi-Black.woff") format("woff"),
+    url("/fonts/satoshi/OTF/Satoshi-Black.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base, components, utilities;
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  :root {
+    --f-size: 1rem;
+
+    /* Heading fonts klaar gezet */
+    /* --f-size-h1: clamp();
+    --f-size-h2: clamp();
+    --f-size-h3: clamp();
+    */
+
+    --f-size-h4: 1.1rem;
+
+    --c-primary: hsl(231, 62%, 17%);
+    --c-secondary: hsl(40, 39%, 86%);
+    --c-light: hsl(0, 0%, 96%);
+    --c-dark: hsl(0, 0%, 7%);
+
+    --c-leave: #c03a2b;
+    --c-leave-tint: #fff0f0;
+    --c-gold: #b88542;
+    --c-gold-tint: #fff8e7;
+    --c-navy: #343a61;
+
+    --c-success-h: 142;
+    --c-success-s: 60%;
+
+    --c-warning-h: 40;
+    --c-warning-s: 90%;
+
+    --c-error-h: 0;
+    --c-error-s: 70%;
+
+    --lh-p: 1.6;
+    --lh-h: 1.4;
+
+    --f-family-sans: sans-serif;
+    --f-family-satoshi-400: "satoshi";
+
+    --space-xs: 0.25rem;
+    --space-s: 0.5rem;
+    --space-m: 1rem;
+    --space-l: 2rem;
+    --space-xl: 4rem;
+
+    --radius: 0.5rem;
+    --transition: 0.15s ease;
+  }
+
+  body {
+    font-size: var(--f-size);
+    font-family: var(--f-family-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  p {
+    line-height: var(--lh-p);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    line-height: var(--lh-h);
+  }
+
+  details {
+    summary {
+    }
+  }
+
+  em {
+  }
+
+  blockquote {
+  }
+
+  figure {
+    figcaption {
+    }
+  }
+
+  mark {
+  }
+
+  dialog {
+  }
+
+  img,
+  video {
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .skip-link {
+    background: var(--c-dark);
+    color: var(--c-light);
+
+    position: absolute;
+    top: -100%;
+    left: 1rem;
+    z-index: 100;
+    padding: 1rem;
+
+    &:focus {
+      top: 1rem;
+    }
+  }
+}
+
+@layer components {
+  .btn {
+    &:hover {
+    }
+  }
+
+  form {
+    label {
+    }
+
+    input,
+    textarea,
+    select {
+      &:focus {
+      }
+    }
+
+    textarea {
+      resize: vertical;
+    }
+
+    fieldset {
+      legend {
+      }
+    }
+
+    [name="_gotcha"] {
+      display: none;
+    }
+  }
+
+  .is-success {
+    color: hsl(var(--c-success-h), var(--c-success-s), 25%);
+    background: hsl(var(--c-success-h), var(--c-success-s), 93%);
+    border: 1px solid hsl(var(--c-success-h), var(--c-success-s), 70%);
+
+    border-radius: var(--radius);
+    padding: var(--space-m);
+  }
+
+  .is-warning {
+    color: hsl(var(--c-warning-h), var(--c-warning-s), 30%);
+    background: hsl(var(--c-warning-h), var(--c-warning-s), 93%);
+    border: 1px solid hsl(var(--c-warning-h), var(--c-warning-s), 65%);
+
+    border-radius: var(--radius);
+    padding: var(--space-m);
+  }
+
+  .is-error {
+    color: hsl(var(--c-error-h), var(--c-error-s), 30%);
+    background: hsl(var(--c-error-h), var(--c-error-s), 94%);
+    border: 1px solid hsl(var(--c-error-h), var(--c-error-s), 70%);
+
+    border-radius: var(--radius);
+    padding: var(--space-m);
+  }
+}
+
+@layer utilities {
+  .h1-font {
+    font-size: var(--f-size-h1);
+  }
+
+  .h2-font {
+    font-size: var(--f-size-h2);
+  }
+
+  .h3-font {
+    font-size: var(--f-size-h3);
+  }
+
+  .h4-font {
+    font-size: var(--f-size-h4);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    *,
+    *::before,
+    *::after {
+      transition: var(--transition);
+    }
+  }
+}
