@@ -2,17 +2,18 @@
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 
 useHead({
-  title: 'Roosters',
+  title: 'Admin',
 })
 
 const auth = useFirebaseAuth()
 const currentUser = ref(null)
 
+// Alleen de admin mag deze pagina zien; anderen worden teruggestuurd
 onMounted(() => {
   onAuthStateChanged(auth, (user) => {
     currentUser.value = user
     if (!user) navigateTo('/')
-    else if (user.email === ADMIN_EMAIL) navigateTo('/admin')
+    else if (user.email !== ADMIN_EMAIL) navigateTo('/roosters')
   })
 })
 
@@ -23,9 +24,9 @@ async function handleSignOut() {
 
 <template>
   <main class="login-screen">
-    <section v-if="currentUser" class="login-card" aria-labelledby="roosters-title">
+    <section v-if="currentUser" class="login-card" aria-labelledby="admin-title">
       <header class="login-card__header">
-        <h1 id="roosters-title" class="login-card__title">Roosters</h1>
+        <h1 id="admin-title" class="login-card__title">Admin dashboard</h1>
         <p class="login-card__subtitle">Ingelogd als {{ currentUser.email }}</p>
       </header>
 

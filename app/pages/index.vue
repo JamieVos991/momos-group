@@ -24,11 +24,11 @@ const currentUser = ref(null);
 const emailInputRef = ref(null);
 const passwordInputRef = ref(null);
 
-// Houdt currentUser in sync met Firebase en stuurt ingelogde gebruikers door naar /roosters
+// Houdt currentUser in sync met Firebase en stuurt ingelogde gebruikers door naar de juiste pagina
 onMounted(() => {
   onAuthStateChanged(auth, (user) => {
     currentUser.value = user;
-    if (user) navigateTo("/roosters");
+    if (user) navigateTo(user.email === ADMIN_EMAIL ? "/admin" : "/roosters");
   });
 });
 
