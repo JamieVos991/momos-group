@@ -66,10 +66,15 @@
     --transition: 0.15s ease;
   }
 
+  html {
+    background: var(--c-primary);
+  }
+
   body {
     font-size: var(--f-size);
     font-family: var(--f-family-sans);
     -webkit-font-smoothing: antialiased;
+    background: var(--c-primary);
   }
 
   p {

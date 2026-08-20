@@ -29,7 +29,7 @@ onMounted(() => {
   onAuthStateChanged(auth, (gebruiker) => {
     huidigeGebruiker.value = gebruiker;
     if (gebruiker)
-      navigateTo(gebruiker.email === ADMIN_EMAIL ? "/admin" : "/roosters");
+      navigateTo(gebruiker.email === ADMIN_EMAIL ? "/admin/diensten" : "/roosters");
   });
 });
 

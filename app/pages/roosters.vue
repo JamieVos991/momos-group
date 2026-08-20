@@ -12,7 +12,7 @@ onMounted(() => {
   onAuthStateChanged(auth, (gebruiker) => {
     huidigeGebruiker.value = gebruiker
     if (!gebruiker) navigateTo('/')
-    else if (gebruiker.email === ADMIN_EMAIL) navigateTo('/admin')
+    else if (gebruiker.email === ADMIN_EMAIL) navigateTo('/admin/diensten')
   })
 })
 
