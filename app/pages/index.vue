@@ -15,32 +15,33 @@ useHead({
 const auth = useFirebaseAuth();
 
 const email = ref("");
-const password = ref("");
-const rememberMe = ref(false);
-const isLoading = ref(false);
-const errorMessage = ref("");
-const currentUser = ref(null);
+const wachtwoord = ref("");
+const onthoudMij = ref(false);
+const isBezig = ref(false);
+const foutmelding = ref("");
+const huidigeGebruiker = ref(null);
 
-const emailInputRef = ref(null);
-const passwordInputRef = ref(null);
+const emailVeldRef = ref(null);
+const wachtwoordVeldRef = ref(null);
 
-// Houdt currentUser in sync met Firebase en stuurt ingelogde gebruikers door naar de juiste pagina
+// Houdt gebruiker in sync met Firebase en stuurt ingelogde gebruikers door naar de juiste pagina
 onMounted(() => {
-  onAuthStateChanged(auth, (user) => {
-    currentUser.value = user;
-    if (user) navigateTo(user.email === ADMIN_EMAIL ? "/admin" : "/roosters");
+  onAuthStateChanged(auth, (gebruiker) => {
+    huidigeGebruiker.value = gebruiker;
+    if (gebruiker)
+      navigateTo(gebruiker.email === ADMIN_EMAIL ? "/admin" : "/roosters");
   });
 });
 
 // Vertaalt Firebase auth foutcodes naar een leesbare Nederlandse foutmelding
-function mapAuthError(code) {
-  switch (code) {
+function vertaalAuthFout(foutcode) {
+  switch (foutcode) {
     case "auth/user-not-found":
       return "Geen account gevonden met dit e-mailadres.";
     case "auth/wrong-password":
-      return "Onjuist wachtwoord, probeer het opnieuw.";
+      return 'Onjuist wachtwoord, probeer het opnieuw. <a href="/wachtwoord-vergeten">Klik hier als je je wachtwoord bent vergeten.</a>';
     case "auth/invalid-credential":
-      return "Onjuiste inloggegevens, controleer je e-mailadres en wachtwoord.";
+      return 'Onjuiste inloggegevens, controleer je e-mailadres en wachtwoord. <a href="/wachtwoord-vergeten">Klik hier als je je wachtwoord bent vergeten.</a>';
     case "auth/invalid-email":
       return "Vul een geldig e-mailadres in.";
     case "auth/too-many-requests":
@@ -48,53 +49,48 @@ function mapAuthError(code) {
     case "auth/network-request-failed":
       return "Geen verbinding, controleer je internetverbinding.";
     default:
-      return "Er ging iets mis bij het inloggen. Probeer het opnieuw.";
+      return 'Er ging iets mis bij het inloggen. Probeer het opnieuw, of <a href="mailto:info@restaurantmomos.nl">neem contact met ons op</a> als dit blijft gebeuren.';
   }
 }
 
 // Verwerkt het login formulier: zet persistence (onthoud mij) en logt in met e-mail/wachtwoord
-async function handleSubmit() {
-  if (isLoading.value) return;
+async function verwerkInlogFormulier() {
+  if (isBezig.value) return;
 
-  errorMessage.value = "";
-  isLoading.value = true;
+  foutmelding.value = "";
+  isBezig.value = true;
 
   try {
     await setPersistence(
       auth,
-      rememberMe.value ? browserLocalPersistence : browserSessionPersistence
+      onthoudMij.value ? browserLocalPersistence : browserSessionPersistence
     );
-    await signInWithEmailAndPassword(auth, email.value.trim(), password.value);
-  } catch (error) {
-    errorMessage.value = mapAuthError(error.code);
-    emailInputRef.value?.focus();
+    await signInWithEmailAndPassword(
+      auth,
+      email.value.trim(),
+      wachtwoord.value
+    );
+  } catch (fout) {
+    foutmelding.value = vertaalAuthFout(fout.code);
+    emailVeldRef.value?.focus();
   } finally {
-    isLoading.value = false;
+    isBezig.value = false;
   }
 }
 
 // Logt de huidige gebruiker uit bij Firebase
-async function handleSignOut() {
+async function uitloggen() {
   await signOut(auth);
 }
 </script>
 
 <template>
   <main class="login-screen">
-    <section
-      v-if="currentUser"
-      class="login-card"
-      aria-labelledby="welcome-title"
-    >
-      <header class="login-card__header">
-        <h1 id="welcome-title" class="login-card__title">Je bent ingelogd</h1>
-        <p class="login-card__subtitle">Ingelogd als {{ currentUser.email }}</p>
-      </header>
-
-      <button class="submit-btn" type="button" @click="handleSignOut">
-        <span>Uitloggen</span>
-      </button>
-    </section>
+    <IngelogdKaart
+      v-if="huidigeGebruiker"
+      :email="huidigeGebruiker.email"
+      @uitloggen="uitloggen"
+    />
 
     <section v-else class="login-card" aria-labelledby="login-title">
       <header class="login-card__header">
@@ -104,28 +100,22 @@ async function handleSignOut() {
         </p>
       </header>
 
-      <p v-if="errorMessage" class="login-card__error" role="alert">
-        {{ errorMessage }}
-      </p>
+      <p v-if="foutmelding" role="alert" v-html="foutmelding"></p>
 
-      <form class="login-form" novalidate @submit.prevent="handleSubmit">
-        <label class="field" :class="{ 'field--error': errorMessage }">
-          <span class="field__label">E-mailadress</span>
-          <span class="field__control">
+      <form novalidate @submit.prevent="verwerkInlogFormulier">
+        <label>
+          <span>E-mailadress</span>
+          <span>
             <input
-              ref="emailInputRef"
+              ref="emailVeldRef"
               v-model="email"
               type="email"
               autocomplete="email"
               placeholder="Jouw@naam.nl"
+              :aria-invalid="!!foutmelding"
               required
             />
-            <svg
-              class="field__icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              aria-hidden="true"
-            >
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <circle
                 cx="12"
                 cy="8"
@@ -143,23 +133,19 @@ async function handleSignOut() {
           </span>
         </label>
 
-        <label class="field" :class="{ 'field--error': errorMessage }">
-          <span class="field__label">Wachtwoord</span>
-          <span class="field__control">
+        <label>
+          <span>Wachtwoord</span>
+          <span>
             <input
-              ref="passwordInputRef"
-              v-model="password"
+              ref="wachtwoordVeldRef"
+              v-model="wachtwoord"
               type="password"
               autocomplete="current-password"
               placeholder="••••••"
+              :aria-invalid="!!foutmelding"
               required
             />
-            <svg
-              class="field__icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              aria-hidden="true"
-            >
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <rect
                 x="3"
                 y="6"
@@ -180,18 +166,13 @@ async function handleSignOut() {
           </span>
         </label>
 
-        <label class="remember">
-          <input v-model="rememberMe" type="checkbox" />
+        <label class="onthoudmij">
+          <input v-model="onthoudMij" type="checkbox" />
           <span>Onthoud mij</span>
         </label>
 
-        <button class="submit-btn" type="submit" :disabled="isLoading">
-          <svg
-            v-if="isLoading"
-            class="submit-btn__spinner"
-            viewBox="0 0 24 24"
-            aria-hidden="true"
-          >
+        <button class="submit-btn" type="submit" :disabled="isBezig">
+          <svg v-if="isBezig" viewBox="0 0 24 24" aria-hidden="true">
             <circle
               cx="12"
               cy="12"
@@ -215,3 +196,98 @@ async function handleSignOut() {
     </section>
   </main>
 </template>
+
+<style scoped>
+form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-m);
+
+  label {
+    display: block;
+
+    span:first-child {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--c-primary);
+      margin-bottom: var(--space-xs);
+    }
+
+    span:last-child {
+      display: block;
+      position: relative;
+
+      input {
+        width: 100%;
+        font: inherit;
+        padding: 0.65rem 2.5rem 0.65rem 0.9rem;
+        border: 1px solid hsl(231, 15%, 80%);
+        border-radius: var(--radius);
+        background: #fff;
+        color: var(--c-dark);
+
+        &::placeholder {
+          color: hsl(231, 10%, 65%);
+        }
+
+        &:focus {
+          outline: none;
+          border-color: var(--c-primary);
+        }
+      }
+
+      svg {
+        position: absolute;
+        right: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 1.1rem;
+        height: 1.1rem;
+        color: hsl(231, 15%, 55%);
+        pointer-events: none;
+      }
+    }
+
+    &:has(input[aria-invalid="true"]) {
+      span:first-child {
+        color: hsl(var(--c-error-h), var(--c-error-s), 40%);
+      }
+
+      input {
+        border-color: hsl(var(--c-error-h), var(--c-error-s), 60%);
+        background: hsl(var(--c-error-h), var(--c-error-s), 98%);
+      }
+
+      svg {
+        color: hsl(var(--c-error-h), var(--c-error-s), 55%);
+      }
+    }
+  }
+}
+
+.onthoudmij {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: 0.8rem;
+  color: var(--c-dark);
+  cursor: pointer;
+
+  input {
+    accent-color: var(--c-primary);
+  }
+}
+
+.submit-btn svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+</style>

@@ -6,30 +6,30 @@ useHead({
 })
 
 const auth = useFirebaseAuth()
-const currentUser = ref(null)
+const huidigeGebruiker = ref(null)
 
 onMounted(() => {
-  onAuthStateChanged(auth, (user) => {
-    currentUser.value = user
-    if (!user) navigateTo('/')
-    else if (user.email === ADMIN_EMAIL) navigateTo('/admin')
+  onAuthStateChanged(auth, (gebruiker) => {
+    huidigeGebruiker.value = gebruiker
+    if (!gebruiker) navigateTo('/')
+    else if (gebruiker.email === ADMIN_EMAIL) navigateTo('/admin')
   })
 })
 
-async function handleSignOut() {
+async function uitloggen() {
   await signOut(auth)
 }
 </script>
 
 <template>
   <main class="login-screen">
-    <section v-if="currentUser" class="login-card" aria-labelledby="roosters-title">
+    <section v-if="huidigeGebruiker" class="login-card" aria-labelledby="roosters-title">
       <header class="login-card__header">
         <h1 id="roosters-title" class="login-card__title">Roosters</h1>
-        <p class="login-card__subtitle">Ingelogd als {{ currentUser.email }}</p>
+        <p class="login-card__subtitle">Ingelogd als {{ huidigeGebruiker.email }}</p>
       </header>
 
-      <button class="submit-btn" type="button" @click="handleSignOut">
+      <button class="submit-btn" type="button" @click="uitloggen">
         <span>Uitloggen</span>
       </button>
     </section>
