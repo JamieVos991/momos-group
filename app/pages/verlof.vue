@@ -2,12 +2,12 @@
 definePageMeta({ layout: "medewerker" });
 
 useHead({
-  title: "Diensten",
+  title: "Verlof",
 });
 </script>
 
 <template>
   <div>
-    <h2>Diensten</h2>
+    <h2>Verlof</h2>
   </div>
 </template>
