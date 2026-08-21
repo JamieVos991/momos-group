@@ -1,5 +1,5 @@
 <script setup>
-import { addDoc, collection, onSnapshot } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, onSnapshot, updateDoc } from "firebase/firestore";
 
 definePageMeta({ layout: "admin" });
 
@@ -90,7 +90,10 @@ function isVandaag(d) {
 }
 
 function isoKey(d) {
-  return d.toISOString().slice(0, 10);
+  const jaar = d.getFullYear();
+  const maand = String(d.getMonth() + 1).padStart(2, "0");
+  const dag = String(d.getDate()).padStart(2, "0");
+  return `${jaar}-${maand}-${dag}`;
 }
 
 const weekStart = ref(geefMaandag(new Date()));
@@ -149,6 +152,7 @@ const presets = [
 
 const modalOpen = ref(false);
 const modalDag = ref(null);
+const bewerkDienstId = ref(null);
 const nieuweDienst = reactive({
   naam: "",
   functie: "bediening",
@@ -174,10 +178,23 @@ watch(
 
 function openDienstModal(dag, functie) {
   modalDag.value = dag;
+  bewerkDienstId.value = null;
   nieuweDienst.naam = "";
   nieuweDienst.functie = functie.key;
   nieuweDienst.start = "12:00";
   nieuweDienst.eind = "22:00";
+  nieuweDienst.heleWeek = false;
+  modalOpen.value = true;
+}
+
+function openBewerkModal(dag, functieKey, dienst) {
+  const [start, eind] = dienst.tijd.split("–");
+  modalDag.value = dag;
+  bewerkDienstId.value = dienst.id;
+  nieuweDienst.naam = dienst.naam;
+  nieuweDienst.functie = functieKey;
+  nieuweDienst.start = start;
+  nieuweDienst.eind = eind;
   nieuweDienst.heleWeek = false;
   modalOpen.value = true;
 }
@@ -201,16 +218,33 @@ async function dienstOpslaan() {
     naam: nieuweDienst.naam,
     functie: nieuweDienst.functie,
   };
-  const doelDagen = nieuweDienst.heleWeek ? dagen.value : [modalDag.value];
   try {
-    await Promise.all(
-      doelDagen.map((dag) =>
-        addDoc(collection(firestore, "diensten"), { ...dienst, datum: dag.iso })
-      )
-    );
+    if (bewerkDienstId.value) {
+      await updateDoc(doc(firestore, "diensten", bewerkDienstId.value), dienst);
+    } else {
+      const doelDagen = nieuweDienst.heleWeek ? dagen.value : [modalDag.value];
+      await Promise.all(
+        doelDagen.map((dag) =>
+          addDoc(collection(firestore, "diensten"), { ...dienst, datum: dag.iso })
+        )
+      );
+    }
     sluitDienstModal();
   } catch {
     foutmelding.value = "Opslaan mislukt. Controleer de Firestore-rechten.";
+  } finally {
+    opslaanBezig.value = false;
+  }
+}
+
+async function dienstVerwijderen() {
+  if (!bewerkDienstId.value || opslaanBezig.value) return;
+  opslaanBezig.value = true;
+  try {
+    await deleteDoc(doc(firestore, "diensten", bewerkDienstId.value));
+    sluitDienstModal();
+  } catch {
+    foutmelding.value = "Verwijderen mislukt. Controleer de Firestore-rechten.";
   } finally {
     opslaanBezig.value = false;
   }
@@ -314,6 +348,7 @@ async function dienstOpslaan() {
             v-for="(dienst, i) in dag.diensten[functie.key]"
             :key="dienst.id || i"
             class="dienst-kaart"
+            @click="openBewerkModal(dag, functie.key, dienst)"
           >
             <p class="dienst-kaart__tijd">{{ dienst.tijd }}</p>
             <p class="dienst-kaart__naam">{{ dienst.naam }}</p>
@@ -334,7 +369,9 @@ async function dienstOpslaan() {
       <div class="dienst-modal">
         <div class="dienst-modal__kop">
           <div>
-            <h3 class="dienst-modal__titel">Dienst toevoegen</h3>
+            <h3 class="dienst-modal__titel">
+              {{ bewerkDienstId ? "Dienst bewerken" : "Dienst toevoegen" }}
+            </h3>
             <p class="dienst-modal__subtitel">
               {{ modalDag?.label }} {{ modalDag?.datum }}
             </p>
@@ -411,7 +448,7 @@ async function dienstOpslaan() {
             </button>
           </div>
 
-          <label class="dienst-modal__toggle">
+          <label v-if="!bewerkDienstId" class="dienst-modal__toggle">
             <input v-model="nieuweDienst.heleWeek" type="checkbox" />
             <span class="dienst-modal__toggle-track">
               <span class="dienst-modal__toggle-knop" />
@@ -430,7 +467,16 @@ async function dienstOpslaan() {
               class="dienst-modal__btn dienst-modal__btn--opslaan"
               :disabled="opslaanBezig"
             >
-              {{ opslaanBezig ? "Opslaan..." : "Dienst toevoegen" }}
+              {{ opslaanBezig ? "Opslaan..." : bewerkDienstId ? "Opslaan" : "Dienst toevoegen" }}
+            </button>
+            <button
+              v-if="bewerkDienstId"
+              type="button"
+              class="dienst-modal__btn dienst-modal__btn--verwijderen"
+              :disabled="opslaanBezig"
+              @click="dienstVerwijderen"
+            >
+              Verwijderen
             </button>
           </div>
         </form>
@@ -615,6 +661,12 @@ async function dienstOpslaan() {
   border: 1px solid hsla(0, 0%, 100%, 0.1);
   border-left: 3px solid;
   padding: var(--space-xs) var(--space-s);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.dienst-kaart:hover {
+  background: hsla(0, 0%, 100%, 0.1);
 }
 
 .dienst-kaart__tijd {
@@ -941,6 +993,20 @@ async function dienstOpslaan() {
 }
 
 .dienst-modal__btn--opslaan:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.dienst-modal__btn--verwijderen {
+  color: hsl(0, 70%, 78%);
+  background: hsla(0, 70%, 60%, 0.12);
+}
+
+.dienst-modal__btn--verwijderen:hover {
+  background: hsla(0, 70%, 60%, 0.2);
+}
+
+.dienst-modal__btn--verwijderen:disabled {
   opacity: 0.6;
   cursor: progress;
 }
