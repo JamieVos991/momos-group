@@ -194,6 +194,9 @@ const navItems = [
 
 .admin-sidebar {
   width: 280px;
+  height: 100vh;
+  position: sticky;
+  top: 0;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -201,6 +204,7 @@ const navItems = [
   background: var(--c-primary);
   color: var(--c-light);
   border-right: 1px solid hsla(0, 0%, 100%, 0.1);
+  overflow-y: auto;
 }
 
 .admin-sidebar__title {
@@ -258,7 +262,7 @@ const navItems = [
 }
 
 .admin-sidebar__email {
-  font-size: 1rem;
+  font-size: 1 rem;
   color: hsl(0, 0%, 75%);
   padding: 0 var(--space-m) var(--space-m);
   border-bottom: 1px solid hsla(0, 0%, 100%, 0.1);
@@ -314,6 +318,7 @@ const navItems = [
 
   .admin-sidebar {
     width: 100%;
+    height: auto;
     flex-direction: row;
     align-items: center;
     padding: var(--space-m);
