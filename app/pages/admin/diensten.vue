@@ -11,119 +11,79 @@ const functies = [
   { key: "spoelkeuken", label: "Spoelkeuken" },
 ];
 
-const dagen = [
-  {
-    key: "ma",
-    label: "MA",
-    datum: "17 aug",
-    vandaag: false,
-    diensten: {
-      bediening: [
-        {},
-        {},
-        {},
-      ],
-      keuken: [{}],
-      spoelkeuken: [],
-    },
-  },
-  {
-    key: "di",
-    label: "DI",
-    datum: "18 aug",
-    vandaag: false,
-    diensten: {
-      bediening: [
-        {},
-        {},
-      ],
-      keuken: [
-        {},
-        {},
-      ],
-      spoelkeuken: [],
-    },
-  },
-  {
-    key: "wo",
-    label: "WO",
-    datum: "19 aug",
-    vandaag: false,
-    diensten: {
-      bediening: [
-        {},
-        {},
-      ],
-      keuken: [{}],
-      spoelkeuken: [],
-    },
-  },
-  {
-    key: "do",
-    label: "DO",
-    datum: "20 aug",
-    vandaag: false,
-    diensten: {
-      bediening: [
-        {},
-        {},
-      ],
-      keuken: [{}],
-      spoelkeuken: [],
-    },
-  },
-  {
-    key: "vr",
-    label: "VR",
-    datum: "21 aug",
-    vandaag: true,
-    diensten: {
-      bediening: [
-        {},
-        {},
-      ],
-      keuken: [{}],
-      spoelkeuken: [{}],
-    },
-  },
-  {
-    key: "za",
-    label: "ZA",
-    datum: "22 aug",
-    vandaag: false,
-    diensten: {
-      bediening: [
-        {},
-        {},
-        {},
-      ],
-      keuken: [{}],
-      spoelkeuken: [
-        {},
-        {},
-        {},
-      ],
-    },
-  },
-  {
-    key: "zo",
-    label: "ZO",
-    datum: "23 aug",
-    vandaag: false,
-    diensten: {
-      bediening: [
-        {},
-        {},
-        {},
-      ],
-      keuken: [
-        {},
-        {},
-      ],
-      spoelkeuken: [{}],
-    },
-  },
+const dagLabels = ["MA", "DI", "WO", "DO", "VR", "ZA", "ZO"];
+const maandLabels = [
+  "jan", "feb", "mrt", "apr", "mei", "jun",
+  "jul", "aug", "sep", "okt", "nov", "dec",
 ];
+
+function geefMaandag(datum) {
+  const d = new Date(datum);
+  const dagNr = d.getDay();
+  const verschil = dagNr === 0 ? -6 : 1 - dagNr;
+  d.setDate(d.getDate() + verschil);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function formatDatum(d) {
+  return `${d.getDate()} ${maandLabels[d.getMonth()]}`;
+}
+
+function isVandaag(d) {
+  const vandaag = new Date();
+  return (
+    d.getDate() === vandaag.getDate() &&
+    d.getMonth() === vandaag.getMonth() &&
+    d.getFullYear() === vandaag.getFullYear()
+  );
+}
+
+const weekStart = ref(geefMaandag(new Date()));
+
+const dagen = computed(() =>
+  dagLabels.map((label, i) => {
+    const datum = new Date(weekStart.value);
+    datum.setDate(datum.getDate() + i);
+    return {
+      key: label.toLowerCase(),
+      label,
+      datum: formatDatum(datum),
+      vandaag: isVandaag(datum),
+      diensten: { bediening: [], keuken: [], spoelkeuken: [] },
+    };
+  })
+);
+
+const weekLabel = computed(() => {
+  const eind = new Date(weekStart.value);
+  eind.setDate(eind.getDate() + 6);
+  return `${formatDatum(weekStart.value)} – ${formatDatum(eind)}`;
+});
+
+function vorigeWeek() {
+  const d = new Date(weekStart.value);
+  d.setDate(d.getDate() - 7);
+  weekStart.value = d;
+}
+
+function volgendeWeek() {
+  const d = new Date(weekStart.value);
+  d.setDate(d.getDate() + 7);
+  weekStart.value = d;
+}
+
+const datumInputRef = ref(null);
+
+function openAgenda() {
+  if (datumInputRef.value?.showPicker) datumInputRef.value.showPicker();
+  else datumInputRef.value?.click();
+}
+
+function kiesDatum(event) {
+  if (!event.target.value) return;
+  weekStart.value = geefMaandag(new Date(event.target.value));
+}
 </script>
 
 <template>
@@ -132,7 +92,12 @@ const dagen = [
       <h2 class="diensten-card__title">Geplande diensten</h2>
 
       <div class="week-nav">
-        <button type="button" class="week-nav__btn" aria-label="Vorige week">
+        <button
+          type="button"
+          class="week-nav__btn"
+          aria-label="Vorige week"
+          @click="vorigeWeek"
+        >
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path
               d="M15 5l-7 7 7 7"
@@ -143,11 +108,12 @@ const dagen = [
             />
           </svg>
         </button>
-        <span class="week-nav__label">17 aug – 23 aug</span>
+        <span class="week-nav__label">{{ weekLabel }}</span>
         <button
           type="button"
           class="week-nav__btn"
           aria-label="Kies week in agenda"
+          @click="openAgenda"
         >
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <rect
@@ -167,8 +133,21 @@ const dagen = [
               stroke-linecap="round"
             />
           </svg>
+          <input
+            ref="datumInputRef"
+            type="date"
+            class="week-nav__datum-input"
+            aria-hidden="true"
+            tabindex="-1"
+            @change="kiesDatum"
+          />
         </button>
-        <button type="button" class="week-nav__btn" aria-label="Volgende week">
+        <button
+          type="button"
+          class="week-nav__btn"
+          aria-label="Volgende week"
+          @click="volgendeWeek"
+        >
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path
               d="M9 5l7 7-7 7"
@@ -245,6 +224,7 @@ const dagen = [
 }
 
 .week-nav__btn {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -262,6 +242,16 @@ const dagen = [
     width: 0.9rem;
     height: 0.9rem;
   }
+}
+
+.week-nav__datum-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+  border: none;
 }
 
 .week-nav__btn:hover {
