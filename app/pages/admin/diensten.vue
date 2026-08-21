@@ -1,4 +1,6 @@
 <script setup>
+import { addDoc, collection, onSnapshot } from "firebase/firestore";
+
 definePageMeta({ layout: "admin" });
 
 useHead({
@@ -10,6 +12,54 @@ const functies = [
   { key: "keuken", label: "Keuken" },
   { key: "spoelkeuken", label: "Spoelkeuken" },
 ];
+
+const firestore = useFirestore();
+const medewerkers = ref([]);
+let stopMedewerkersListener = null;
+
+onMounted(() => {
+  stopMedewerkersListener = onSnapshot(
+    collection(firestore, "medewerkers"),
+    (snapshot) => {
+      medewerkers.value = snapshot.docs.map((d) => d.data());
+    },
+    () => {
+      medewerkers.value = [];
+    }
+  );
+});
+
+onUnmounted(() => {
+  stopMedewerkersListener?.();
+});
+
+const dienstenData = ref({});
+const foutmelding = ref("");
+let stopDienstenListener = null;
+
+onMounted(() => {
+  stopDienstenListener = onSnapshot(
+    collection(firestore, "diensten"),
+    (snapshot) => {
+      const nieuw = {};
+      snapshot.docs.forEach((d) => {
+        const data = d.data();
+        if (!nieuw[data.datum]) {
+          nieuw[data.datum] = { bediening: [], keuken: [], spoelkeuken: [] };
+        }
+        nieuw[data.datum][data.functie]?.push({ tijd: data.tijd, naam: data.naam, id: d.id });
+      });
+      dienstenData.value = nieuw;
+    },
+    () => {
+      foutmelding.value = "Kon diensten niet laden. Controleer de Firestore-rechten.";
+    }
+  );
+});
+
+onUnmounted(() => {
+  stopDienstenListener?.();
+});
 
 const dagLabels = ["MA", "DI", "WO", "DO", "VR", "ZA", "ZO"];
 const maandLabels = [
@@ -39,18 +89,24 @@ function isVandaag(d) {
   );
 }
 
+function isoKey(d) {
+  return d.toISOString().slice(0, 10);
+}
+
 const weekStart = ref(geefMaandag(new Date()));
 
 const dagen = computed(() =>
   dagLabels.map((label, i) => {
     const datum = new Date(weekStart.value);
     datum.setDate(datum.getDate() + i);
+    const iso = isoKey(datum);
     return {
       key: label.toLowerCase(),
+      iso,
       label,
       datum: formatDatum(datum),
       vandaag: isVandaag(datum),
-      diensten: { bediening: [], keuken: [], spoelkeuken: [] },
+      diensten: dienstenData.value[iso] || { bediening: [], keuken: [], spoelkeuken: [] },
     };
   })
 );
@@ -83,6 +139,81 @@ function openAgenda() {
 function kiesDatum(event) {
   if (!event.target.value) return;
   weekStart.value = geefMaandag(new Date(event.target.value));
+}
+
+const presets = [
+  { label: "Lunch 12:00–17:00", start: "12:00", eind: "17:00" },
+  { label: "Diner 16:00–22:00", start: "16:00", eind: "22:00" },
+  { label: "Dubbel 12:00–22:00", start: "12:00", eind: "22:00" },
+];
+
+const modalOpen = ref(false);
+const modalDag = ref(null);
+const nieuweDienst = reactive({
+  naam: "",
+  functie: "bediening",
+  start: "12:00",
+  eind: "22:00",
+  heleWeek: false,
+});
+
+const beschikbareMedewerkers = computed(() =>
+  medewerkers.value
+    .filter((m) => m.functies?.includes(nieuweDienst.functie))
+    .map((m) => m.naam)
+);
+
+watch(
+  () => nieuweDienst.functie,
+  () => {
+    if (!beschikbareMedewerkers.value.includes(nieuweDienst.naam)) {
+      nieuweDienst.naam = "";
+    }
+  }
+);
+
+function openDienstModal(dag, functie) {
+  modalDag.value = dag;
+  nieuweDienst.naam = "";
+  nieuweDienst.functie = functie.key;
+  nieuweDienst.start = "12:00";
+  nieuweDienst.eind = "22:00";
+  nieuweDienst.heleWeek = false;
+  modalOpen.value = true;
+}
+
+function sluitDienstModal() {
+  modalOpen.value = false;
+}
+
+function zetPreset(start, eind) {
+  nieuweDienst.start = start;
+  nieuweDienst.eind = eind;
+}
+
+const opslaanBezig = ref(false);
+
+async function dienstOpslaan() {
+  if (!nieuweDienst.start || !nieuweDienst.eind || opslaanBezig.value) return;
+  opslaanBezig.value = true;
+  const dienst = {
+    tijd: `${nieuweDienst.start}–${nieuweDienst.eind}`,
+    naam: nieuweDienst.naam,
+    functie: nieuweDienst.functie,
+  };
+  const doelDagen = nieuweDienst.heleWeek ? dagen.value : [modalDag.value];
+  try {
+    await Promise.all(
+      doelDagen.map((dag) =>
+        addDoc(collection(firestore, "diensten"), { ...dienst, datum: dag.iso })
+      )
+    );
+    sluitDienstModal();
+  } catch {
+    foutmelding.value = "Opslaan mislukt. Controleer de Firestore-rechten.";
+  } finally {
+    opslaanBezig.value = false;
+  }
 }
 </script>
 
@@ -159,6 +290,8 @@ function kiesDatum(event) {
       </div>
     </header>
 
+    <p v-if="foutmelding" class="diensten-melding">{{ foutmelding }}</p>
+
     <div class="diensten-grid">
       <div v-for="dag in dagen" :key="dag.key" class="dag-kolom">
         <div class="dag-header" :class="{ 'dag-header--vandaag': dag.vandaag }">
@@ -177,8 +310,130 @@ function kiesDatum(event) {
             {{ functie.label.toUpperCase() }}
           </p>
 
-          <button type="button" class="dienst-toevoegen">+</button>
+          <div
+            v-for="(dienst, i) in dag.diensten[functie.key]"
+            :key="dienst.id || i"
+            class="dienst-kaart"
+          >
+            <p class="dienst-kaart__tijd">{{ dienst.tijd }}</p>
+            <p class="dienst-kaart__naam">{{ dienst.naam }}</p>
+          </div>
+
+          <button
+            type="button"
+            class="dienst-toevoegen"
+            @click="openDienstModal(dag, functie)"
+          >
+            +
+          </button>
         </div>
+      </div>
+    </div>
+
+    <div v-if="modalOpen" class="dienst-modal__overlay" @click.self="sluitDienstModal">
+      <div class="dienst-modal">
+        <div class="dienst-modal__kop">
+          <div>
+            <h3 class="dienst-modal__titel">Dienst toevoegen</h3>
+            <p class="dienst-modal__subtitel">
+              {{ modalDag?.label }} {{ modalDag?.datum }}
+            </p>
+          </div>
+          <button
+            type="button"
+            class="dienst-modal__sluiten"
+            aria-label="Sluiten"
+            @click="sluitDienstModal"
+          >
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M6 6l12 12M18 6L6 18"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <form class="dienst-modal__form" @submit.prevent="dienstOpslaan">
+          <label class="dienst-modal__veld">
+            <span>Naam</span>
+            <select v-model="nieuweDienst.naam">
+              <option value="" disabled>Kies medewerker</option>
+              <option v-for="naam in beschikbareMedewerkers" :key="naam" :value="naam">
+                {{ naam }}
+              </option>
+            </select>
+          </label>
+
+          <div class="dienst-modal__veld">
+            <span>Functie</span>
+            <div class="dienst-modal__functies">
+              <button
+                v-for="f in functies"
+                :key="f.key"
+                type="button"
+                class="dienst-modal__functie-btn"
+                :class="[
+                  `sectie--${f.key}`,
+                  { 'dienst-modal__functie-btn--actief': nieuweDienst.functie === f.key },
+                ]"
+                @click="nieuweDienst.functie = f.key"
+              >
+                <span class="sectie__dot" />
+                {{ f.label.toUpperCase() }}
+              </button>
+            </div>
+          </div>
+
+          <div class="dienst-modal__tijden">
+            <label class="dienst-modal__veld">
+              <span>Begintijd</span>
+              <input v-model="nieuweDienst.start" type="time" required />
+            </label>
+
+            <label class="dienst-modal__veld">
+              <span>Eindtijd</span>
+              <input v-model="nieuweDienst.eind" type="time" required />
+            </label>
+          </div>
+
+          <div class="dienst-modal__presets">
+            <button
+              v-for="preset in presets"
+              :key="preset.label"
+              type="button"
+              class="dienst-modal__preset"
+              @click="zetPreset(preset.start, preset.eind)"
+            >
+              {{ preset.label }}
+            </button>
+          </div>
+
+          <label class="dienst-modal__toggle">
+            <input v-model="nieuweDienst.heleWeek" type="checkbox" />
+            <span class="dienst-modal__toggle-track">
+              <span class="dienst-modal__toggle-knop" />
+            </span>
+            <span class="dienst-modal__toggle-tekst">
+              <strong>Toepassen op hele week</strong>
+              <small>Voegt dezelfde dienst toe op ma t/m zo.</small>
+            </span>
+          </label>
+
+          <p v-if="foutmelding" class="dienst-modal__foutmelding">{{ foutmelding }}</p>
+
+          <div class="dienst-modal__acties">
+            <button
+              type="submit"
+              class="dienst-modal__btn dienst-modal__btn--opslaan"
+              :disabled="opslaanBezig"
+            >
+              {{ opslaanBezig ? "Opslaan..." : "Dienst toevoegen" }}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
@@ -200,6 +455,12 @@ function kiesDatum(event) {
   flex-wrap: wrap;
   gap: 1rem;
   padding: var(--space-m);
+}
+
+.diensten-melding {
+  font-size: 0.85rem;
+  color: hsl(0, 70%, 75%);
+  padding: 0 var(--space-m) var(--space-m);
 }
 
 .diensten-card__title {
@@ -414,5 +675,278 @@ function kiesDatum(event) {
     border-radius: var(--radius);
     background: hsla(0, 0%, 100%, 0.03);
   }
+}
+
+.dienst-modal__overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  padding: var(--space-m);
+  z-index: 100;
+}
+
+.dienst-modal {
+  width: 100%;
+  max-width: 24rem;
+  max-height: calc(100vh - 2 * var(--space-m));
+  overflow-y: auto;
+  background: var(--c-primary);
+  color: var(--c-light);
+  border-radius: 1rem;
+  padding: var(--space-l);
+  box-shadow: 0 1.5rem 3rem rgba(0, 0, 0, 0.4);
+}
+
+.dienst-modal__kop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-m);
+  padding-bottom: var(--space-m);
+  margin-bottom: var(--space-m);
+  border-bottom: 1px solid hsla(0, 0%, 100%, 0.1);
+}
+
+.dienst-modal__titel {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.dienst-modal__subtitel {
+  font-size: 0.85rem;
+  color: hsl(0, 0%, 70%);
+  margin-top: var(--space-xs);
+}
+
+.dienst-modal__sluiten {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  color: #fff;
+  background: transparent;
+  border: 1px solid hsla(0, 0%, 100%, 0.2);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background var(--transition);
+
+  svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  &:hover {
+    background: hsla(0, 0%, 100%, 0.1);
+  }
+}
+
+.dienst-modal__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-m);
+}
+
+.dienst-modal__veld {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: hsl(0, 0%, 65%);
+
+  input,
+  select {
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: 400;
+    letter-spacing: normal;
+    color: #fff;
+    background: hsla(0, 0%, 100%, 0.06);
+    border: 1px solid hsla(0, 0%, 100%, 0.15);
+    border-radius: var(--radius);
+    padding: 0.65rem 0.9rem;
+    color-scheme: dark;
+
+    option {
+      color: var(--c-dark);
+    }
+
+    &::placeholder {
+      color: hsl(0, 0%, 50%);
+    }
+
+    &:focus {
+      outline: none;
+      border-color: hsla(0, 0%, 100%, 0.4);
+    }
+  }
+
+  select {
+    appearance: none;
+    padding-right: 2.5rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.85rem center;
+    background-size: 0.9rem;
+  }
+}
+
+.dienst-modal__tijden {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-m);
+}
+
+.dienst-modal__functies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-s);
+}
+
+.dienst-modal__functie-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: hsl(0, 0%, 70%);
+  background: transparent;
+  border: 1px solid hsla(0, 0%, 100%, 0.15);
+  border-radius: 999px;
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.dienst-modal__functie-btn--actief {
+  color: #fff;
+  background: hsla(0, 0%, 100%, 0.08);
+  border-color: hsla(0, 0%, 100%, 0.35);
+}
+
+.dienst-modal__presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-s);
+}
+
+.dienst-modal__preset {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: hsl(0, 0%, 80%);
+  background: hsla(0, 0%, 100%, 0.06);
+  border: 1px solid hsla(0, 0%, 100%, 0.15);
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.dienst-modal__preset:hover {
+  background: hsla(0, 0%, 100%, 0.12);
+}
+
+.dienst-modal__toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-m);
+  padding: 1rem 0;
+  cursor: pointer;
+
+  input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+}
+
+.dienst-modal__toggle-track {
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 1.4rem;
+  border-radius: 999px;
+  background: hsla(0, 0%, 100%, 0.15);
+  padding: 0.15rem;
+  transition: background var(--transition);
+}
+
+.dienst-modal__toggle-knop {
+  display: block;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform var(--transition);
+}
+
+.dienst-modal__toggle input:checked + .dienst-modal__toggle-track {
+  background: hsl(166, 40%, 45%);
+}
+
+.dienst-modal__toggle input:checked + .dienst-modal__toggle-track .dienst-modal__toggle-knop {
+  transform: translateX(1.1rem);
+}
+
+.dienst-modal__toggle-tekst {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.8rem;
+
+  strong {
+    color: #fff;
+  }
+
+  small {
+    color: hsl(0, 0%, 65%);
+  }
+}
+
+.dienst-modal__acties {
+  display: flex;
+  justify-content: flex-start;
+  gap: var(--space-s);
+  margin-top: var(--space-xs);
+}
+
+.dienst-modal__btn {
+  font: inherit;
+  font-weight: 700;
+  border: none;
+  border-radius: 999px;
+  padding: 0.6rem 1.4rem;
+  cursor: pointer;
+  transition: background var(--transition), opacity var(--transition);
+}
+
+.dienst-modal__btn--opslaan {
+  background: hsl(231, 65%, 78%);
+  color: var(--c-primary);
+}
+
+.dienst-modal__btn--opslaan:hover {
+  background: hsl(231, 65%, 72%);
+}
+
+.dienst-modal__btn--opslaan:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.dienst-modal__foutmelding {
+  font-size: 0.8rem;
+  color: hsl(0, 70%, 75%);
 }
 </style>

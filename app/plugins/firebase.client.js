@@ -1,5 +1,6 @@
 import { getApp, getApps, initializeApp } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
+import { getFirestore } from 'firebase/firestore'
 import { getAnalytics, isSupported } from 'firebase/analytics'
 
 export default defineNuxtPlugin((nuxtApp) => {
@@ -17,10 +18,12 @@ export default defineNuxtPlugin((nuxtApp) => {
 
   const app = getApps().length ? getApp() : initializeApp(firebaseConfig)
   const auth = getAuth(app)
+  const firestore = getFirestore(app)
 
   isSupported().then((supported) => {
     if (supported) getAnalytics(app)
   })
 
   nuxtApp.provide('firebaseAuth', auth)
+  nuxtApp.provide('firestore', firestore)
 })
