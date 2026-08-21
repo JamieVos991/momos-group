@@ -39,7 +39,7 @@ onUnmounted(() => {
   stopListener?.();
 });
 
-const nieuweMedewerker = reactive({ naam: "", functies: ["bediening"] });
+const nieuweMedewerker = reactive({ naam: "", email: "", functies: ["bediening"] });
 const bezig = ref(false);
 
 function functieToggle(key) {
@@ -49,14 +49,22 @@ function functieToggle(key) {
 }
 
 async function medewerkerToevoegen() {
-  if (!nieuweMedewerker.naam.trim() || !nieuweMedewerker.functies.length || bezig.value) return;
+  if (
+    !nieuweMedewerker.naam.trim() ||
+    !nieuweMedewerker.email.trim() ||
+    !nieuweMedewerker.functies.length ||
+    bezig.value
+  )
+    return;
   bezig.value = true;
   try {
     await addDoc(collection(firestore, "medewerkers"), {
       naam: nieuweMedewerker.naam.trim(),
+      email: nieuweMedewerker.email.trim().toLowerCase(),
       functies: [...nieuweMedewerker.functies],
     });
     nieuweMedewerker.naam = "";
+    nieuweMedewerker.email = "";
   } catch {
     foutmelding.value = "Opslaan mislukt. Controleer de Firestore-rechten.";
   } finally {
@@ -90,6 +98,13 @@ function functieLabel(key) {
         v-model="nieuweMedewerker.naam"
         type="text"
         placeholder="Naam medewerker"
+        required
+      />
+
+      <input
+        v-model="nieuweMedewerker.email"
+        type="email"
+        placeholder="E-mailadres"
         required
       />
 
@@ -133,7 +148,10 @@ function functieLabel(key) {
             {{ functieLabel(key).toUpperCase() }}
           </span>
         </div>
-        <span class="medewerker-item__naam">{{ mw.naam }}</span>
+        <div class="medewerker-item__info">
+          <span class="medewerker-item__naam">{{ mw.naam }}</span>
+          <span v-if="mw.email" class="medewerker-item__email">{{ mw.email }}</span>
+        </div>
         <button
           type="button"
           class="medewerker-item__verwijderen"
@@ -326,10 +344,21 @@ function functieLabel(key) {
   border-radius: 50%;
 }
 
-.medewerker-item__naam {
+.medewerker-item__info {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.medewerker-item__naam {
   font-size: 0.9rem;
   font-weight: 600;
+}
+
+.medewerker-item__email {
+  font-size: 0.75rem;
+  color: hsl(0, 0%, 65%);
 }
 
 .medewerker-item__verwijderen {
