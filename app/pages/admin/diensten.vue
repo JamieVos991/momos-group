@@ -89,8 +89,6 @@ function kiesDatum(event) {
 <template>
   <div class="diensten-card">
     <header class="diensten-card__header">
-      <h2 class="diensten-card__title">Geplande diensten</h2>
-
       <div class="week-nav">
         <button
           type="button"
@@ -198,7 +196,7 @@ function kiesDatum(event) {
 .diensten-card__header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   flex-wrap: wrap;
   gap: 1rem;
   padding: var(--space-m);
