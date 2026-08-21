@@ -19,11 +19,11 @@ const dagen = [
     vandaag: false,
     diensten: {
       bediening: [
-        { tijd: "12:00–22:00", naam: "Megan" },
-        { tijd: "12:00–22:00", naam: "Mario" },
-        { tijd: "12:00–22:00", naam: "Moise" },
+        {},
+        {},
+        {},
       ],
-      keuken: [{ tijd: "11:45–22:00", naam: "Ashley" }],
+      keuken: [{}],
       spoelkeuken: [],
     },
   },
@@ -34,12 +34,12 @@ const dagen = [
     vandaag: false,
     diensten: {
       bediening: [
-        { tijd: "18:00–22:00", naam: "Megan" },
-        { tijd: "11:45–22:00", naam: "Chanelle" },
+        {},
+        {},
       ],
       keuken: [
-        { tijd: "17:00–22:00", naam: "Mario" },
-        { tijd: "11:45–17:00", naam: "Ashley" },
+        {},
+        {},
       ],
       spoelkeuken: [],
     },
@@ -51,10 +51,10 @@ const dagen = [
     vandaag: false,
     diensten: {
       bediening: [
-        { tijd: "17:00–22:00", naam: "Megan" },
-        { tijd: "11:45–22:00", naam: "Chanelle" },
+        {},
+        {},
       ],
-      keuken: [{ tijd: "11:45–22:00", naam: "Mario" }],
+      keuken: [{}],
       spoelkeuken: [],
     },
   },
@@ -65,10 +65,10 @@ const dagen = [
     vandaag: false,
     diensten: {
       bediening: [
-        { tijd: "17:00–22:00", naam: "Megan" },
-        { tijd: "11:45–22:00", naam: "Chanelle" },
+        {},
+        {},
       ],
-      keuken: [{ tijd: "11:30–22:00", naam: "Mario" }],
+      keuken: [{}],
       spoelkeuken: [],
     },
   },
@@ -79,11 +79,11 @@ const dagen = [
     vandaag: true,
     diensten: {
       bediening: [
-        { tijd: "11:45–22:00", naam: "Chanelle" },
-        { tijd: "12:00–22:00", naam: "Megan" },
+        {},
+        {},
       ],
-      keuken: [{ tijd: "12:00–22:00", naam: "Mario" }],
-      spoelkeuken: [{ tijd: "12:00–18:00", naam: "Senna" }],
+      keuken: [{}],
+      spoelkeuken: [{}],
     },
   },
   {
@@ -93,15 +93,15 @@ const dagen = [
     vandaag: false,
     diensten: {
       bediening: [
-        { tijd: "14:00–22:00", naam: "Chanelle" },
-        { tijd: "12:00–22:00", naam: "Megan" },
-        { tijd: "12:00–20:00", naam: "Moise" },
+        {},
+        {},
+        {},
       ],
-      keuken: [{ tijd: "12:00–22:00", naam: "Mario" }],
+      keuken: [{}],
       spoelkeuken: [
-        { tijd: "12:00–17:00", naam: "Senna" },
-        { tijd: "17:00–21:00", naam: "Armin" },
-        { tijd: "14:00–21:00", naam: "Guiliome" },
+        {},
+        {},
+        {},
       ],
     },
   },
@@ -112,15 +112,15 @@ const dagen = [
     vandaag: false,
     diensten: {
       bediening: [
-        { tijd: "12:00–22:00", naam: "Chanelle" },
-        { tijd: "12:00–22:00", naam: "Moise" },
-        { tijd: "11:30–17:00", naam: "Jamie" },
+        {},
+        {},
+        {},
       ],
       keuken: [
-        { tijd: "12:00–22:00", naam: "Mario" },
-        { tijd: "12:00–22:00", naam: "Megan" },
+        {},
+        {},
       ],
-      spoelkeuken: [{ tijd: "16:00–21:00", naam: "Guiliome" }],
+      spoelkeuken: [{}],
     },
   },
 ];
@@ -199,15 +199,6 @@ const dagen = [
             <span class="sectie__dot" />
             {{ functie.label.toUpperCase() }}
           </p>
-
-          <div
-            v-for="(dienst, i) in dag.diensten[functie.key]"
-            :key="i"
-            class="dienst-kaart"
-          >
-            <p class="dienst-kaart__tijd">{{ dienst.tijd }}</p>
-            <p class="dienst-kaart__naam">{{ dienst.naam }}</p>
-          </div>
 
           <button type="button" class="dienst-toevoegen">+</button>
         </div>
