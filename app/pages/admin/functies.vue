@@ -49,13 +49,7 @@ function functieToggle(key) {
 }
 
 async function medewerkerToevoegen() {
-  if (
-    !nieuweMedewerker.naam.trim() ||
-    !nieuweMedewerker.email.trim() ||
-    !nieuweMedewerker.functies.length ||
-    bezig.value
-  )
-    return;
+  if (!nieuweMedewerker.naam.trim() || !nieuweMedewerker.functies.length || bezig.value) return;
   bezig.value = true;
   try {
     await addDoc(collection(firestore, "medewerkers"), {
@@ -105,7 +99,6 @@ function functieLabel(key) {
         v-model="nieuweMedewerker.email"
         type="email"
         placeholder="E-mailadres"
-        required
       />
 
       <div class="medewerker-form__functies">
