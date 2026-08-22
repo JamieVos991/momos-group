@@ -377,4 +377,44 @@ function functieLabel(key) {
     color: #fff;
   }
 }
+
+@media (max-width: 40rem) {
+  .functies-card {
+    padding: var(--space-m);
+  }
+
+  .medewerker-form {
+    flex-direction: column;
+    align-items: stretch;
+    padding-bottom: var(--space-m);
+    margin-bottom: var(--space-m);
+
+    input {
+      min-width: 0;
+    }
+  }
+
+  .medewerker-form__toevoegen {
+    width: 100%;
+  }
+
+  .medewerker-item {
+    flex-wrap: wrap;
+  }
+
+  .medewerker-item__badges {
+    order: 1;
+    flex: 1 1 auto;
+  }
+
+  .medewerker-item__verwijderen {
+    order: 2;
+    flex-shrink: 0;
+  }
+
+  .medewerker-item__info {
+    order: 3;
+    flex: 1 1 100%;
+  }
+}
 </style>
