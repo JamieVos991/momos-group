@@ -25,6 +25,30 @@ const aanvragen = [
     statusLabel: "Afgewezen",
   },
 ];
+
+const nieuweAanvraag = reactive({ start: "", eind: "", reden: "" });
+const aangeraakt = reactive({ start: false, eind: false, reden: false });
+const verstuurd = ref(false);
+
+const isGeldig = computed(
+  () => nieuweAanvraag.start && nieuweAanvraag.eind && nieuweAanvraag.reden.trim()
+);
+
+function markeerAangeraakt(veld) {
+  aangeraakt[veld] = true;
+}
+
+function veldStatusKlasse(veld) {
+  if (!aangeraakt[veld]) return "";
+  const waarde =
+    veld === "reden" ? nieuweAanvraag[veld].trim() : nieuweAanvraag[veld];
+  return waarde ? "verlof-form__veld--geldig" : "verlof-form__veld--ongeldig";
+}
+
+function versturen() {
+  if (!isGeldig.value) return;
+  verstuurd.value = true;
+}
 </script>
 
 <template>
@@ -32,27 +56,49 @@ const aanvragen = [
     <section class="verlof-aanvraag">
       <h2 class="verlof-aanvraag__titel">Verlof aanvragen</h2>
 
-      <form class="verlof-form">
+      <form class="verlof-form" novalidate @submit.prevent="versturen">
         <fieldset class="verlof-form__tijden">
           <legend class="sr-only">Periode</legend>
 
-          <label class="verlof-form__veld">
+          <label class="verlof-form__veld" :class="veldStatusKlasse('start')">
             <span>Startdatum</span>
-            <input type="date" />
+            <input
+              v-model="nieuweAanvraag.start"
+              type="date"
+              required
+              @blur="markeerAangeraakt('start')"
+            />
           </label>
 
-          <label class="verlof-form__veld">
+          <label class="verlof-form__veld" :class="veldStatusKlasse('eind')">
             <span>Einddatum</span>
-            <input type="date" />
+            <input
+              v-model="nieuweAanvraag.eind"
+              type="date"
+              required
+              @blur="markeerAangeraakt('eind')"
+            />
           </label>
         </fieldset>
 
-        <label class="verlof-form__veld">
+        <label class="verlof-form__veld" :class="veldStatusKlasse('reden')">
           <span>Reden</span>
-          <textarea rows="3" placeholder="Bijv. vakantie, familiebezoek..." />
+          <textarea
+            v-model="nieuweAanvraag.reden"
+            rows="3"
+            placeholder="Bijv. vakantie, familiebezoek..."
+            required
+            @blur="markeerAangeraakt('reden')"
+          />
         </label>
 
-        <button type="button" class="verlof-form__versturen">Aanvraag versturen</button>
+        <p v-if="verstuurd" class="verlof-melding" role="status">
+          Je aanvraag is verstuurd. Je ontvangt bericht zodra deze is beoordeeld.
+        </p>
+
+        <button type="submit" class="verlof-form__versturen" :disabled="!isGeldig">
+          Aanvraag versturen
+        </button>
       </form>
     </section>
 
@@ -137,6 +183,10 @@ const aanvragen = [
       color: hsl(0, 0%, 50%);
     }
 
+    &:hover {
+      border-color: hsla(0, 0%, 100%, 0.25);
+    }
+
     &:focus {
       outline: none;
       border-color: hsla(0, 0%, 100%, 0.4);
@@ -144,21 +194,50 @@ const aanvragen = [
   }
 }
 
+.verlof-form__veld--geldig {
+  input,
+  textarea {
+    border-color: hsl(var(--c-success-h), var(--c-success-s), 55%);
+  }
+}
+
+.verlof-form__veld--ongeldig {
+  input,
+  textarea {
+    border-color: hsl(var(--c-error-h), var(--c-error-s), 60%);
+  }
+}
+
+.verlof-melding {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: hsl(var(--c-success-h), var(--c-success-s), 80%);
+  background: hsla(var(--c-success-h), var(--c-success-s), 45%, 0.2);
+  border: 1px solid hsla(var(--c-success-h), var(--c-success-s), 45%, 0.4);
+  border-radius: var(--radius);
+  padding: var(--space-s) var(--space-m);
+}
+
 .verlof-form__versturen {
   align-self: flex-start;
   font: inherit;
   font-weight: 700;
-  color: var(--c-primary);
-  background: hsl(231, 65%, 78%);
+  color: #fff;
+  background: hsl(231, 40%, 52%);
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius);
   padding: 0.6rem 1.4rem;
   cursor: pointer;
-  transition: background var(--transition);
+  transition: background var(--transition), opacity var(--transition);
 }
 
-.verlof-form__versturen:hover {
-  background: hsl(231, 65%, 72%);
+.verlof-form__versturen:hover:not(:disabled) {
+  background: hsl(231, 40%, 45%);
+}
+
+.verlof-form__versturen:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .verlof-lijst-sectie {
@@ -213,7 +292,7 @@ const aanvragen = [
   font-weight: 700;
   letter-spacing: 0.02em;
   padding: 0.3rem 0.75rem;
-  border-radius: 999px;
+  border-radius: var(--radius);
   white-space: nowrap;
 }
 
