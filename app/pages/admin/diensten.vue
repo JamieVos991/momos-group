@@ -1,5 +1,5 @@
 <script setup>
-import { addDoc, collection, deleteDoc, doc, onSnapshot, updateDoc } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, onSnapshot, query, updateDoc, where } from "firebase/firestore";
 
 definePageMeta({ layout: "admin" });
 
@@ -61,6 +61,31 @@ onUnmounted(() => {
   stopDienstenListener?.();
 });
 
+const goedgekeurdVerlof = ref([]);
+let stopVerlofListener = null;
+
+onMounted(() => {
+  stopVerlofListener = onSnapshot(
+    query(collection(firestore, "verlofaanvragen"), where("status", "==", "goedgekeurd")),
+    (snapshot) => {
+      goedgekeurdVerlof.value = snapshot.docs.map((d) => d.data());
+    },
+    () => {
+      goedgekeurdVerlof.value = [];
+    }
+  );
+});
+
+onUnmounted(() => {
+  stopVerlofListener?.();
+});
+
+function medewerkersOpVerlof(iso) {
+  return goedgekeurdVerlof.value
+    .filter((v) => v.start <= iso && iso <= v.eind)
+    .map((v) => v.naam);
+}
+
 const dagLabels = ["MA", "DI", "WO", "DO", "VR", "ZA", "ZO"];
 const maandLabels = [
   "jan", "feb", "mrt", "apr", "mei", "jun",
@@ -110,6 +135,7 @@ const dagen = computed(() =>
       datum: formatDatum(datum),
       vandaag: isVandaag(datum),
       diensten: dienstenData.value[iso] || { bediening: [], keuken: [], spoelkeuken: [] },
+      opVerlof: medewerkersOpVerlof(iso),
     };
   })
 );
@@ -332,6 +358,10 @@ async function dienstVerwijderen() {
           <p class="dag-header__label">{{ dag.label }}</p>
           <p class="dag-header__datum">{{ dag.datum }}</p>
         </div>
+
+        <p v-if="dag.opVerlof.length" class="dag-verlof">
+          <span class="dag-verlof__label">Verlof:</span> {{ dag.opVerlof.join(", ") }}
+        </p>
 
         <div
           v-for="functie in functies"
@@ -601,6 +631,20 @@ async function dienstVerwijderen() {
 
 .dag-header--vandaag {
   background: hsla(0, 0%, 100%, 0.1);
+}
+
+.dag-verlof {
+  font-size: 0.7rem;
+  line-height: 1.4;
+  color: hsl(28, 85%, 75%);
+  background: hsla(28, 85%, 55%, 0.15);
+  padding: var(--space-xs) var(--space-m);
+  border-bottom: 1px solid hsla(28, 85%, 55%, 0.25);
+}
+
+.dag-verlof__label {
+  color: hsl(28, 90%, 65%);
+  font-weight: 700;
 }
 
 .sectie {
