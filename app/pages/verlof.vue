@@ -1,34 +1,96 @@
 <script setup>
+import { addDoc, collection, onSnapshot, query, where } from "firebase/firestore";
+
 definePageMeta({ layout: "medewerker" });
 
 useHead({
   title: "Verlof",
 });
 
-const aanvragen = [
-  {
-    periode: "24 aug – 26 aug",
-    reden: "Familie-uitje",
-    status: "goedgekeurd",
-    statusLabel: "Goedgekeurd",
-  },
-  {
-    periode: "3 sep",
-    reden: "Doktersafspraak",
-    status: "behandeling",
-    statusLabel: "In behandeling",
-  },
-  {
-    periode: "12 sep – 14 sep",
-    reden: "Weekendje weg",
-    status: "afgewezen",
-    statusLabel: "Afgewezen",
-  },
+const auth = useFirebaseAuth();
+const firestore = useFirestore();
+
+const maandLabels = [
+  "jan", "feb", "mrt", "apr", "mei", "jun",
+  "jul", "aug", "sep", "okt", "nov", "dec",
 ];
+
+function formatDatum(isoDatum) {
+  const [, maand, dag] = isoDatum.split("-").map(Number);
+  return `${dag} ${maandLabels[maand - 1]}`;
+}
+
+function formatPeriode(start, eind) {
+  return start === eind
+    ? formatDatum(start)
+    : `${formatDatum(start)} – ${formatDatum(eind)}`;
+}
+
+const statusLabels = {
+  behandeling: "In behandeling",
+  goedgekeurd: "Goedgekeurd",
+  afgewezen: "Afgewezen",
+};
+
+const medewerker = ref(null);
+const aanvragen = ref([]);
+const laden = ref(true);
+const foutmelding = ref("");
+
+let stopMedewerkerListener = null;
+let stopAanvragenListener = null;
+
+onMounted(() => {
+  const email = auth.currentUser?.email;
+  if (!email) {
+    laden.value = false;
+    return;
+  }
+
+  stopMedewerkerListener = onSnapshot(
+    query(collection(firestore, "medewerkers"), where("email", "==", email.toLowerCase())),
+    (snapshot) => {
+      medewerker.value = snapshot.docs[0]?.data() ?? null;
+
+      stopAanvragenListener?.();
+      if (!medewerker.value) {
+        laden.value = false;
+        return;
+      }
+
+      stopAanvragenListener = onSnapshot(
+        query(collection(firestore, "verlofaanvragen"), where("naam", "==", medewerker.value.naam)),
+        (aanvragenSnapshot) => {
+          aanvragen.value = aanvragenSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+          laden.value = false;
+          foutmelding.value = "";
+        },
+        () => {
+          laden.value = false;
+          foutmelding.value = "Kon je verlofaanvragen niet laden. Controleer de Firestore-rechten.";
+        }
+      );
+    },
+    () => {
+      laden.value = false;
+      foutmelding.value = "Kon je gegevens niet laden. Controleer de Firestore-rechten.";
+    }
+  );
+});
+
+onUnmounted(() => {
+  stopMedewerkerListener?.();
+  stopAanvragenListener?.();
+});
+
+const gesorteerdeAanvragen = computed(() =>
+  [...aanvragen.value].sort((a, b) => a.start.localeCompare(b.start))
+);
 
 const nieuweAanvraag = reactive({ start: "", eind: "", reden: "" });
 const aangeraakt = reactive({ start: false, eind: false, reden: false });
 const verstuurd = ref(false);
+const verzendBezig = ref(false);
 
 const isGeldig = computed(
   () => nieuweAanvraag.start && nieuweAanvraag.eind && nieuweAanvraag.reden.trim()
@@ -45,9 +107,30 @@ function veldStatusKlasse(veld) {
   return waarde ? "verlof-form__veld--geldig" : "verlof-form__veld--ongeldig";
 }
 
-function versturen() {
-  if (!isGeldig.value) return;
-  verstuurd.value = true;
+async function versturen() {
+  if (!isGeldig.value || !medewerker.value || verzendBezig.value) return;
+  verzendBezig.value = true;
+  foutmelding.value = "";
+  try {
+    await addDoc(collection(firestore, "verlofaanvragen"), {
+      naam: medewerker.value.naam,
+      start: nieuweAanvraag.start,
+      eind: nieuweAanvraag.eind,
+      reden: nieuweAanvraag.reden.trim(),
+      status: "behandeling",
+    });
+    nieuweAanvraag.start = "";
+    nieuweAanvraag.eind = "";
+    nieuweAanvraag.reden = "";
+    aangeraakt.start = false;
+    aangeraakt.eind = false;
+    aangeraakt.reden = false;
+    verstuurd.value = true;
+  } catch {
+    foutmelding.value = "Versturen mislukt. Controleer de Firestore-rechten.";
+  } finally {
+    verzendBezig.value = false;
+  }
 }
 </script>
 
@@ -55,6 +138,10 @@ function versturen() {
   <article class="verlof-card">
     <section class="verlof-aanvraag">
       <h2 class="verlof-aanvraag__titel">Verlof aanvragen</h2>
+
+      <p v-if="!laden && !medewerker" class="verlof-melding verlof-melding--fout">
+        Er is nog geen medewerkersprofiel gekoppeld aan jouw account. Vraag de beheerder om je e-mailadres toe te voegen.
+      </p>
 
       <form class="verlof-form" novalidate @submit.prevent="versturen">
         <fieldset class="verlof-form__tijden">
@@ -92,12 +179,19 @@ function versturen() {
           />
         </label>
 
-        <p v-if="verstuurd" class="verlof-melding" role="status">
+        <p v-if="verstuurd" class="verlof-melding verlof-melding--succes" role="status">
           Je aanvraag is verstuurd. Je ontvangt bericht zodra deze is beoordeeld.
         </p>
+        <p v-if="foutmelding" class="verlof-melding verlof-melding--fout" role="alert">
+          {{ foutmelding }}
+        </p>
 
-        <button type="submit" class="verlof-form__versturen" :disabled="!isGeldig">
-          Aanvraag versturen
+        <button
+          type="submit"
+          class="verlof-form__versturen"
+          :disabled="!isGeldig || !medewerker || verzendBezig"
+        >
+          {{ verzendBezig ? "Versturen..." : "Aanvraag versturen" }}
         </button>
       </form>
     </section>
@@ -105,14 +199,19 @@ function versturen() {
     <section class="verlof-lijst-sectie">
       <h2 class="verlof-lijst-sectie__titel">Mijn aanvragen</h2>
 
-      <ul class="verlof-lijst">
-        <li v-for="aanvraag in aanvragen" :key="aanvraag.periode" class="verlof-item">
+      <p v-if="laden" class="verlof-lijst__leeg">Laden...</p>
+
+      <ul v-else class="verlof-lijst">
+        <li v-if="!gesorteerdeAanvragen.length" class="verlof-lijst__leeg">
+          Je hebt nog geen verlofaanvragen ingediend.
+        </li>
+        <li v-for="aanvraag in gesorteerdeAanvragen" :key="aanvraag.id" class="verlof-item">
           <p class="verlof-item__periode">
-            {{ aanvraag.periode }}
+            {{ formatPeriode(aanvraag.start, aanvraag.eind) }}
             <small class="verlof-item__reden">{{ aanvraag.reden }}</small>
           </p>
           <span class="verlof-item__status" :class="`status--${aanvraag.status}`">
-            {{ aanvraag.statusLabel }}
+            {{ statusLabels[aanvraag.status] }}
           </span>
         </li>
       </ul>
@@ -211,11 +310,20 @@ function versturen() {
 .verlof-melding {
   font-size: 0.8rem;
   font-weight: 600;
+  border-radius: var(--radius);
+  padding: var(--space-s) var(--space-m);
+}
+
+.verlof-melding--succes {
   color: hsl(var(--c-success-h), var(--c-success-s), 80%);
   background: hsla(var(--c-success-h), var(--c-success-s), 45%, 0.2);
   border: 1px solid hsla(var(--c-success-h), var(--c-success-s), 45%, 0.4);
-  border-radius: var(--radius);
-  padding: var(--space-s) var(--space-m);
+}
+
+.verlof-melding--fout {
+  color: hsl(var(--c-error-h), var(--c-error-s), 85%);
+  background: hsla(var(--c-error-h), var(--c-error-s), 45%, 0.2);
+  border: 1px solid hsla(var(--c-error-h), var(--c-error-s), 45%, 0.4);
 }
 
 .verlof-form__versturen {
@@ -250,6 +358,11 @@ function versturen() {
   display: flex;
   flex-direction: column;
   gap: var(--space-s);
+}
+
+.verlof-lijst__leeg {
+  font-size: 0.85rem;
+  color: hsl(0, 0%, 65%);
 }
 
 .verlof-item {

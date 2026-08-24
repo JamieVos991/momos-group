@@ -3,14 +3,14 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 
 const auth = useFirebaseAuth();
 const route = useRoute();
-const huidigeGebruiker = ref({ email: "test@restaurantmomos.nl" }); // TIJDELIJK voor visuele QA
+const huidigeGebruiker = ref(null);
 
 // Alleen de admin mag het beheerpaneel zien; anderen worden teruggestuurd
 onMounted(() => {
   onAuthStateChanged(auth, (gebruiker) => {
-    // huidigeGebruiker.value = gebruiker;
-    // if (!gebruiker) navigateTo("/");
-    // else if (gebruiker.email !== ADMIN_EMAIL) navigateTo("/roosters");
+    huidigeGebruiker.value = gebruiker;
+    if (!gebruiker) navigateTo("/");
+    else if (gebruiker.email !== ADMIN_EMAIL) navigateTo("/roosters");
   });
 });
 
