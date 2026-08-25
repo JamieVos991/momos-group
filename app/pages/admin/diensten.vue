@@ -35,6 +35,7 @@ onUnmounted(() => {
 
 const dienstenData = ref({});
 const foutmelding = ref("");
+const laden = ref(true);
 let stopDienstenListener = null;
 
 onMounted(() => {
@@ -50,9 +51,11 @@ onMounted(() => {
         nieuw[data.datum][data.functie]?.push({ tijd: data.tijd, naam: data.naam, id: d.id });
       });
       dienstenData.value = nieuw;
+      laden.value = false;
     },
     () => {
       foutmelding.value = "Kon diensten niet laden. Controleer de Firestore-rechten.";
+      laden.value = false;
     }
   );
 });
@@ -352,7 +355,23 @@ async function dienstVerwijderen() {
 
     <p v-if="foutmelding" class="diensten-melding">{{ foutmelding }}</p>
 
-    <div class="diensten-grid">
+    <p v-if="laden" class="sr-only" role="status">Rooster wordt geladen...</p>
+
+    <ul v-if="laden" class="diensten-grid diensten-grid--skeleton" aria-hidden="true">
+      <li v-for="n in 7" :key="n" class="dag-kolom">
+        <header class="dag-header">
+          <span class="skeleton skeleton--label" />
+          <span class="skeleton skeleton--datum" />
+        </header>
+
+        <section v-for="s in 3" :key="s" class="sectie">
+          <span class="skeleton skeleton--sectie-header" />
+          <span class="skeleton skeleton--kaart" />
+        </section>
+      </li>
+    </ul>
+
+    <div v-else class="diensten-grid">
       <div v-for="dag in dagen" :key="dag.key" class="dag-kolom">
         <div class="dag-header" :class="{ 'dag-header--vandaag': dag.vandaag }">
           <p class="dag-header__label">{{ dag.label }}</p>
@@ -741,6 +760,71 @@ async function dienstVerwijderen() {
 .dienst-toevoegen:hover {
   background: hsla(0, 0%, 100%, 0.06);
   color: hsl(0, 0%, 85%);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.skeleton {
+  display: block;
+  border-radius: var(--radius);
+  background: linear-gradient(
+    90deg,
+    hsla(0, 0%, 100%, 0.06) 25%,
+    hsla(0, 0%, 100%, 0.14) 37%,
+    hsla(0, 0%, 100%, 0.06) 63%
+  );
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+.skeleton--label {
+  width: 1.8rem;
+  height: 0.9rem;
+  margin-bottom: 0.3rem;
+}
+
+.skeleton--datum {
+  width: 2.6rem;
+  height: 0.75rem;
+}
+
+.skeleton--sectie-header {
+  width: 4.5rem;
+  height: 0.7rem;
+  margin: var(--space-xs) var(--space-m);
+}
+
+.skeleton--kaart {
+  width: 100%;
+  height: 2.4rem;
+  margin: var(--space-xs) 0 0;
+  border-radius: 0;
+}
+
+.diensten-grid--skeleton {
+  list-style: none;
 }
 
 @media (max-width: 40rem) {
