@@ -215,7 +215,7 @@ async function beslissen(id, status) {
 
 .verlof-admin-leeg {
   font-size: 0.85rem;
-  color: hsl(0, 0%, 65%);
+  color: hsl(0, 0%, 68%);
 }
 
 .verlof-admin-lijst {

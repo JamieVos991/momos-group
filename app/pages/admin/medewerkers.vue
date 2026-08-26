@@ -210,7 +210,7 @@ function functieLabel(key) {
     padding: 0.65rem 0.9rem;
 
     &::placeholder {
-      color: hsl(0, 0%, 55%);
+      color: hsl(0, 0%, 68%);
     }
 
     &:focus {
@@ -279,7 +279,7 @@ function functieLabel(key) {
 
 .medewerker-lijst__leeg {
   font-size: 0.85rem;
-  color: hsl(0, 0%, 65%);
+  color: hsl(0, 0%, 68%);
 }
 
 .medewerker-item {
@@ -351,7 +351,7 @@ function functieLabel(key) {
 
 .medewerker-item__email {
   font-size: 0.75rem;
-  color: hsl(0, 0%, 65%);
+  color: hsl(0, 0%, 68%);
 }
 
 .medewerker-item__verwijderen {
@@ -360,7 +360,7 @@ function functieLabel(key) {
   justify-content: center;
   width: 1.75rem;
   height: 1.75rem;
-  color: hsl(0, 0%, 65%);
+  color: hsl(0, 0%, 68%);
   background: transparent;
   border: none;
   border-radius: 50%;

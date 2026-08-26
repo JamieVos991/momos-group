@@ -261,7 +261,7 @@ async function versturen() {
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.02em;
-  color: hsl(0, 0%, 65%);
+  color: hsl(0, 0%, 68%);
 
   input,
   textarea {
@@ -279,7 +279,7 @@ async function versturen() {
     font-family: inherit;
 
     &::placeholder {
-      color: hsl(0, 0%, 50%);
+      color: hsl(0, 0%, 68%);
     }
 
     &:hover {
@@ -362,7 +362,7 @@ async function versturen() {
 
 .verlof-lijst__leeg {
   font-size: 0.85rem;
-  color: hsl(0, 0%, 65%);
+  color: hsl(0, 0%, 68%);
 }
 
 .verlof-item {
@@ -386,7 +386,7 @@ async function versturen() {
   display: block;
   font-size: 0.8rem;
   font-weight: 400;
-  color: hsl(0, 0%, 65%);
+  color: hsl(0, 0%, 68%);
   margin-top: 0.15rem;
 }
 

@@ -280,6 +280,8 @@ async function dienstVerwijderen() {
 <template>
   <div class="diensten-card">
     <header class="diensten-card__header">
+      <h2 class="sr-only">Diensten</h2>
+
       <div class="week-nav">
         <button
           type="button"
@@ -387,6 +389,7 @@ async function dienstVerwijderen() {
           <button
             type="button"
             class="dienst-toevoegen"
+            :aria-label="`Dienst toevoegen voor ${functie.label} op ${dag.label} ${dag.datum}`"
             @click="openDienstModal(dag, functie)"
           >
             +
@@ -724,6 +727,15 @@ async function dienstVerwijderen() {
   color: hsl(0, 0%, 72%);
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 .dienst-toevoegen {
   display: block;
   width: calc(100% - 2 * var(--space-m));
@@ -855,7 +867,7 @@ async function dienstVerwijderen() {
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.02em;
-  color: hsl(0, 0%, 65%);
+  color: hsl(0, 0%, 68%);
 
   input,
   select {
@@ -875,7 +887,7 @@ async function dienstVerwijderen() {
     }
 
     &::placeholder {
-      color: hsl(0, 0%, 50%);
+      color: hsl(0, 0%, 68%);
     }
 
     &:focus {
@@ -1006,7 +1018,7 @@ async function dienstVerwijderen() {
   }
 
   small {
-    color: hsl(0, 0%, 65%);
+    color: hsl(0, 0%, 68%);
   }
 }
 

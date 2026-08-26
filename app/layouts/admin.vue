@@ -29,6 +29,8 @@ const navItems = [
 
 <template>
   <div class="admin-layout">
+    <a href="#admin-hoofdinhoud" class="skip-link">Naar hoofdinhoud</a>
+
     <aside class="admin-sidebar">
       <h1 class="admin-sidebar__title">Beheer</h1>
       <div class="admin-sidebar__divider" />
@@ -207,7 +209,7 @@ const navItems = [
       </div>
     </aside>
 
-    <main v-if="huidigeGebruiker" class="admin-content">
+    <main v-if="huidigeGebruiker" id="admin-hoofdinhoud" class="admin-content">
       <slot />
     </main>
   </div>
