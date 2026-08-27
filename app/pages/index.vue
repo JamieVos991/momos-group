@@ -1,4 +1,8 @@
 <script setup>
+// Het formulier hieronder post naar server/api/login.post.js (echte HTML-post,
+// geen @submit.prevent), dus inloggen werkt ook zonder JavaScript. De
+// foutmelding komt niet uit een catch-block maar uit de ?error=-query die de
+// server na een mislukte poging teruggeeft.
 useHead({
   title: "Inloggen",
 });
@@ -19,6 +23,8 @@ function vertaalAuthFout(foutcode) {
   }
 }
 
+// Werkt al tijdens server-rendering: de query is bekend voordat de pagina
+// naar de browser gaat, dus de foutmelding staat er al zonder JavaScript.
 const foutmelding = computed(() =>
   route.query.error ? vertaalAuthFout(route.query.error) : ""
 );
@@ -43,6 +49,8 @@ onMounted(() => {
 
       <p v-if="foutmelding" role="alert" v-html="foutmelding"></p>
 
+      <!-- Echte formulier-post (geen @submit.prevent): de name-attributen op de
+           velden hieronder zijn wat de browser meestuurt, met of zonder JS -->
       <form method="post" action="/api/login">
         <label>
           <span>E-mailadress</span>

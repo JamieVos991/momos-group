@@ -1,6 +1,9 @@
 <script setup>
 const route = useRoute();
-const { user } = useUserSession();
+// gebruiker is al gevuld tijdens server-rendering (komt uit de sessie-cookie),
+// dus de sidebar en inhoud zijn meteen zichtbaar, ook zonder JavaScript.
+// Wie hier mag komen wordt geregeld door app/middleware/auth.global.js.
+const { user: gebruiker } = useUserSession();
 
 const navItems = [
   { label: "Diensten", to: "/admin/diensten" },
@@ -143,8 +146,8 @@ const navItems = [
         </NuxtLink>
       </nav>
 
-      <div v-if="user" class="admin-sidebar__footer">
-        <p class="admin-sidebar__email">{{ user.email }}</p>
+      <div v-if="gebruiker" class="admin-sidebar__footer">
+        <p class="admin-sidebar__email">{{ gebruiker.email }}</p>
 
         <div class="admin-sidebar__footer-actions">
           <button
@@ -168,6 +171,7 @@ const navItems = [
             </svg>
           </button>
 
+          <!-- Echt formulier i.p.v. een JS-click-handler, zodat uitloggen ook zonder JavaScript werkt -->
           <form action="/api/logout" method="post">
             <button
               type="submit"
@@ -194,6 +198,8 @@ const navItems = [
       </div>
     </aside>
 
+    <!-- Geen v-if meer: de middleware regelt wie hier mag komen, dus de inhoud
+         hoeft niet verstopt te worden achter een client-only check -->
     <main id="admin-hoofdinhoud" class="admin-content">
       <slot />
     </main>
@@ -291,6 +297,8 @@ const navItems = [
   gap: var(--space-m);
   padding: var(--space-m) var(--space-m) 0;
 
+  /* Laat het logout-formulier onzichtbaar zijn voor de flex-layout,
+     zodat de knop er precies zo uitziet als voorheen */
   form {
     display: contents;
   }
