@@ -22,36 +22,33 @@ async function ookClientUitloggen(evt) {
 }
 
 const navItems = [
-  { label: "Diensten", to: "/admin/diensten" },
-  { label: "Evenementen", to: "/admin/evenementen" },
-  { label: "Verlof", to: "/admin/verlof" },
-  { label: "Medewerkers", to: "/admin/medewerkers" },
-  { label: "Functies", to: "/admin/functies" },
+  { label: "Diensten", to: "/roosters" },
+  { label: "Verlof", to: "/verlof" },
 ];
 </script>
 
 <template>
-  <div class="admin-layout">
-    <a href="#admin-hoofdinhoud" class="skip-link">Naar hoofdinhoud</a>
+  <div class="medewerker-layout">
+    <a href="#medewerker-hoofdinhoud" class="skip-link">Naar hoofdinhoud</a>
 
-    <aside class="admin-sidebar">
-      <h1 class="admin-sidebar__title">Beheer</h1>
-      <div class="admin-sidebar__divider" />
+    <aside class="medewerker-sidebar">
+      <h1 class="medewerker-sidebar__title">Momo's</h1>
+      <div class="medewerker-sidebar__divider" />
 
-      <nav class="admin-sidebar__nav">
+      <nav class="medewerker-sidebar__nav">
         <NuxtLink
           v-for="item in navItems"
           :key="item.to"
           :to="item.to"
           :aria-label="item.label"
-          class="admin-sidebar__link"
+          class="medewerker-sidebar__link"
           :class="{
-            'admin-sidebar__link--active': route.path.startsWith(item.to),
+            'medewerker-sidebar__link--active': route.path.startsWith(item.to),
           }"
         >
           <svg
             v-if="item.label === 'Diensten'"
-            class="admin-sidebar__icon"
+            class="medewerker-sidebar__icon"
             viewBox="0 0 24 24"
             fill="none"
             aria-hidden="true"
@@ -74,22 +71,8 @@ const navItems = [
             />
           </svg>
           <svg
-            v-else-if="item.label === 'Evenementen'"
-            class="admin-sidebar__icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            aria-hidden="true"
-          >
-            <path
-              d="M12 3.5l2.55 5.17 5.7.83-4.13 4.02.98 5.68L12 16.4l-5.1 2.8.98-5.68-4.13-4.02 5.7-.83z"
-              stroke="currentColor"
-              stroke-width="1.6"
-              stroke-linejoin="round"
-            />
-          </svg>
-          <svg
-            v-else-if="item.label === 'Verlof'"
-            class="admin-sidebar__icon"
+            v-else
+            class="medewerker-sidebar__icon"
             viewBox="0 0 24 24"
             fill="none"
             aria-hidden="true"
@@ -108,67 +91,18 @@ const navItems = [
               stroke-linecap="round"
             />
           </svg>
-          <svg
-            v-else-if="item.label === 'Medewerkers'"
-            class="admin-sidebar__icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            aria-hidden="true"
-          >
-            <circle cx="9" cy="8" r="3" stroke="currentColor" stroke-width="1.6" />
-            <path
-              d="M3.5 19c0-3 2.5-5 5.5-5s5.5 2 5.5 5"
-              stroke="currentColor"
-              stroke-width="1.6"
-              stroke-linecap="round"
-            />
-            <path
-              d="M15.5 5.5a3 3 0 0 1 0 5.5"
-              stroke="currentColor"
-              stroke-width="1.6"
-              stroke-linecap="round"
-            />
-            <path
-              d="M15.5 14c2.3.4 4 2.2 4 4.5"
-              stroke="currentColor"
-              stroke-width="1.6"
-              stroke-linecap="round"
-            />
-          </svg>
-          <svg
-            v-else
-            class="admin-sidebar__icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            aria-hidden="true"
-          >
-            <rect
-              x="3.5"
-              y="7.5"
-              width="17"
-              height="12"
-              rx="2"
-              stroke="currentColor"
-              stroke-width="1.6"
-            />
-            <path
-              d="M8 7.5V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v1.5"
-              stroke="currentColor"
-              stroke-width="1.6"
-            />
-          </svg>
 
           <span>{{ item.label }}</span>
         </NuxtLink>
       </nav>
 
-      <div v-if="gebruiker" class="admin-sidebar__footer">
-        <p class="admin-sidebar__email">{{ gebruiker.email }}</p>
+      <div v-if="gebruiker" class="medewerker-sidebar__footer">
+        <p class="medewerker-sidebar__email">{{ gebruiker.email }}</p>
 
-        <div class="admin-sidebar__footer-actions">
+        <div class="medewerker-sidebar__footer-actions">
           <button
             type="button"
-            class="admin-sidebar__icon-btn"
+            class="medewerker-sidebar__icon-btn"
             aria-label="Meldingen"
           >
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -191,7 +125,7 @@ const navItems = [
           <form action="/api/logout" method="post" @submit="ookClientUitloggen">
             <button
               type="submit"
-              class="admin-sidebar__icon-btn"
+              class="medewerker-sidebar__icon-btn"
               aria-label="Uitloggen"
             >
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -216,24 +150,21 @@ const navItems = [
 
     <!-- Geen v-if meer: de middleware regelt wie hier mag komen, dus de inhoud
          hoeft niet verstopt te worden achter een client-only check -->
-    <main id="admin-hoofdinhoud" class="admin-content">
+    <main id="medewerker-hoofdinhoud" class="medewerker-content">
       <slot />
     </main>
   </div>
 </template>
 
 <style scoped>
-.admin-layout {
+.medewerker-layout {
   display: flex;
   min-height: 100vh;
   background: var(--c-light);
 }
 
-.admin-sidebar {
+.medewerker-sidebar {
   width: 280px;
-  height: 100vh;
-  position: sticky;
-  top: 0;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -241,29 +172,28 @@ const navItems = [
   background: var(--c-primary);
   color: var(--c-light);
   border-right: 1px solid hsla(0, 0%, 100%, 0.1);
-  overflow-y: auto;
 }
 
-.admin-sidebar__title {
+.medewerker-sidebar__title {
   font-size: 1.5rem;
   padding-left: 0.75rem;
   font-weight: 700;
   margin-bottom: var(--space-m);
 }
 
-.admin-sidebar__divider {
+.medewerker-sidebar__divider {
   border-bottom: 1px solid hsla(0, 0%, 100%, 0.1);
   margin: 0 calc(-1 * var(--space-m)) var(--space-m);
 }
 
-.admin-sidebar__nav {
+.medewerker-sidebar__nav {
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
   flex: 1;
 }
 
-.admin-sidebar__link {
+.medewerker-sidebar__link {
   display: flex;
   align-items: center;
   gap: 0.9rem;
@@ -274,23 +204,23 @@ const navItems = [
   transition: background var(--transition), color var(--transition);
 }
 
-.admin-sidebar__link:hover {
+.medewerker-sidebar__link:hover {
   background: hsla(0, 0%, 100%, 0.06);
 }
 
-.admin-sidebar__link--active {
+.medewerker-sidebar__link--active {
   background: var(--c-navy);
   color: #fff;
   font-weight: 700;
 }
 
-.admin-sidebar__icon {
+.medewerker-sidebar__icon {
   width: 1.2rem;
   height: 1.2rem;
   flex-shrink: 0;
 }
 
-.admin-sidebar__footer {
+.medewerker-sidebar__footer {
   border-top: 1px solid hsla(0, 0%, 100%, 0.1);
   padding-top: var(--space-m);
   margin: 0 calc(-1 * var(--space-m));
@@ -298,8 +228,8 @@ const navItems = [
   flex-direction: column;
 }
 
-.admin-sidebar__email {
-  font-size: 1 rem;
+.medewerker-sidebar__email {
+  font-size: 1rem;
   color: hsl(0, 0%, 75%);
   padding: 0 var(--space-m) var(--space-m);
   border-bottom: 1px solid hsla(0, 0%, 100%, 0.1);
@@ -308,7 +238,7 @@ const navItems = [
   white-space: nowrap;
 }
 
-.admin-sidebar__footer-actions {
+.medewerker-sidebar__footer-actions {
   display: flex;
   gap: var(--space-m);
   padding: var(--space-m) var(--space-m) 0;
@@ -320,7 +250,7 @@ const navItems = [
   }
 }
 
-.admin-sidebar__icon-btn {
+.medewerker-sidebar__icon-btn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -343,25 +273,24 @@ const navItems = [
   }
 }
 
-.admin-content {
+.medewerker-content {
   flex: 1;
   padding: var(--space-l);
   background: var(--c-primary);
   color: var(--c-light);
 }
 
-.admin-content :slotted(h2) {
+.medewerker-content :slotted(h2) {
   font-size: 0.9rem;
 }
 
 @media (max-width: 40rem) {
-  .admin-layout {
+  .medewerker-layout {
     flex-direction: column;
   }
 
-  .admin-sidebar {
+  .medewerker-sidebar {
     width: 100%;
-    height: auto;
     flex-direction: row;
     align-items: center;
     padding: var(--space-m);
@@ -369,26 +298,26 @@ const navItems = [
     border-bottom: 1px solid hsla(0, 0%, 100%, 0.1);
   }
 
-  .admin-sidebar__title,
-  .admin-sidebar__divider {
+  .medewerker-sidebar__title,
+  .medewerker-sidebar__divider {
     display: none;
   }
 
-  .admin-sidebar__nav {
+  .medewerker-sidebar__nav {
     flex-direction: row;
     gap: var(--space-xs);
     overflow-x: auto;
   }
 
-  .admin-sidebar__link {
+  .medewerker-sidebar__link {
     padding: var(--space-s);
   }
 
-  .admin-sidebar__link span {
+  .medewerker-sidebar__link span {
     display: none;
   }
 
-  .admin-sidebar__footer {
+  .medewerker-sidebar__footer {
     flex-direction: row;
     align-items: center;
     width: auto;
@@ -398,11 +327,11 @@ const navItems = [
     border-top: none;
   }
 
-  .admin-sidebar__email {
+  .medewerker-sidebar__email {
     display: none;
   }
 
-  .admin-sidebar__footer-actions {
+  .medewerker-sidebar__footer-actions {
     padding: 0;
   }
 }

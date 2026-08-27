@@ -22,12 +22,6 @@
   :root {
     --f-size: 1rem;
 
-    /* Heading fonts klaar gezet */
-    /* --f-size-h1: clamp();
-    --f-size-h2: clamp();
-    --f-size-h3: clamp();
-    */
-
     --f-size-h4: 1.1rem;
 
     --c-primary: hsl(231, 62%, 17%);
@@ -256,7 +250,7 @@
     font: inherit;
     font-weight: 700;
     color: #fff;
-    background: hsl(166, 40%, 45%);
+    background: hsl(166, 40%, 38%);
     border: none;
     border-radius: 999px;
     padding: 0.75rem 1.5rem;
@@ -264,7 +258,7 @@
     cursor: pointer;
 
     &:hover:not(:disabled) {
-      background: hsl(166, 40%, 40%);
+      background: hsl(166, 40%, 33%);
     }
 
     &:disabled {
