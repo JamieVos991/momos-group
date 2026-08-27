@@ -1,13 +1,16 @@
 <script setup>
-// Het formulier hieronder post naar server/api/login.post.js (echte HTML-post,
-// geen @submit.prevent), dus inloggen werkt ook zonder JavaScript. De
-// foutmelding komt niet uit een catch-block maar uit de ?error=-query die de
-// server na een mislukte poging teruggeeft.
+// Het formulier hieronder post naar server/api/login.post.js (echte HTML-post),
+// dus inloggen werkt ook zonder JavaScript. De foutmelding komt niet uit een
+// catch-block maar uit de ?error=-query die de server na een mislukte poging
+// teruggeeft.
+import { signInWithEmailAndPassword, setPersistence, browserLocalPersistence, browserSessionPersistence } from "firebase/auth";
+
 useHead({
   title: "Inloggen",
 });
 
 const route = useRoute();
+const auth = useFirebaseAuth();
 
 // Vertaalt de foutcode uit de ?error=-query naar een leesbare Nederlandse melding
 function vertaalAuthFout(foutcode) {
@@ -35,6 +38,34 @@ const emailVeldRef = ref(null);
 onMounted(() => {
   if (foutmelding.value) emailVeldRef.value?.focus();
 });
+
+// JS-verbetering bovenop de echte formulier-post hierboven: server/api/login.post.js
+// logt je in via onze eigen sessie-cookie, maar logt de Firebase-client in de
+// browser zelf niet in. Pagina's die nog rechtstreeks Firestore uitlezen
+// (medewerkers, functies, evenementen, de dienst-modal) hebben die client-login
+// wél nodig. Dus: als er JS is, loggen we hier ook nog even in bij de
+// client-SDK, en laten we daarna de normale, native formulier-post gewoon
+// doorgaan naar de server (geen fetch, geen eigen redirect-logica).
+async function ookClientInloggen(evt) {
+  evt.preventDefault();
+  const formulier = evt.target;
+  const email = formulier.email.value.trim();
+  const wachtwoord = formulier.wachtwoord.value;
+  const onthoudMij = formulier.onthoudMij.checked;
+
+  try {
+    await setPersistence(
+      auth,
+      onthoudMij ? browserLocalPersistence : browserSessionPersistence
+    );
+    await signInWithEmailAndPassword(auth, email, wachtwoord);
+  } catch {
+    // Bewust genegeerd: de server hierna doet de echte verificatie en
+    // toont de juiste foutmelding als het misgaat.
+  }
+
+  formulier.submit(); // gewone, native form-submission naar de server
+}
 </script>
 
 <template>
@@ -49,9 +80,10 @@ onMounted(() => {
 
       <p v-if="foutmelding" role="alert" v-html="foutmelding"></p>
 
-      <!-- Echte formulier-post (geen @submit.prevent): de name-attributen op de
-           velden hieronder zijn wat de browser meestuurt, met of zonder JS -->
-      <form method="post" action="/api/login">
+      <!-- Echte formulier-post: de name-attributen op de velden hieronder zijn
+           wat de browser meestuurt, met of zonder JS. @submit is puur een
+           JS-verbetering (zie ookClientInloggen hierboven), geen vereiste. -->
+      <form method="post" action="/api/login" @submit="ookClientInloggen">
         <label>
           <span>E-mailadress</span>
           <span>

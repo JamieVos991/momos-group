@@ -1,9 +1,25 @@
 <script setup>
+import { signOut } from "firebase/auth";
+
 const route = useRoute();
 // gebruiker is al gevuld tijdens server-rendering (komt uit de sessie-cookie),
 // dus de sidebar en inhoud zijn meteen zichtbaar, ook zonder JavaScript.
 // Wie hier mag komen wordt geregeld door app/middleware/auth.global.js.
 const { user: gebruiker } = useUserSession();
+const auth = useFirebaseAuth();
+
+// JS-verbetering: log ook de Firebase-client uit (zie ookClientInloggen in
+// index.vue voor waarom die client-login apart bestaat), en laat daarna de
+// echte formulier-post naar /api/logout gewoon doorgaan.
+async function ookClientUitloggen(evt) {
+  evt.preventDefault();
+  try {
+    await signOut(auth);
+  } catch {
+    // Bewust genegeerd: uitloggen op de server (hierna) is het enige dat echt telt.
+  }
+  evt.target.submit();
+}
 
 const navItems = [
   { label: "Diensten", to: "/admin/diensten" },
@@ -172,7 +188,7 @@ const navItems = [
           </button>
 
           <!-- Echt formulier i.p.v. een JS-click-handler, zodat uitloggen ook zonder JavaScript werkt -->
-          <form action="/api/logout" method="post">
+          <form action="/api/logout" method="post" @submit="ookClientUitloggen">
             <button
               type="submit"
               class="admin-sidebar__icon-btn"
