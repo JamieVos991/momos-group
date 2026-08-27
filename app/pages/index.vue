@@ -1,98 +1,39 @@
 <script setup>
-import {
-  browserLocalPersistence,
-  browserSessionPersistence,
-  onAuthStateChanged,
-  setPersistence,
-  signInWithEmailAndPassword,
-  signOut,
-} from "firebase/auth";
-
 useHead({
   title: "Inloggen",
 });
 
-const auth = useFirebaseAuth();
+const route = useRoute();
 
-const email = ref("");
-const wachtwoord = ref("");
-const onthoudMij = ref(false);
-const isBezig = ref(false);
-const foutmelding = ref("");
-const huidigeGebruiker = ref(null);
-
-const emailVeldRef = ref(null);
-const wachtwoordVeldRef = ref(null);
-
-// Houdt gebruiker in sync met Firebase en stuurt ingelogde gebruikers door naar de juiste pagina
-onMounted(() => {
-  onAuthStateChanged(auth, (gebruiker) => {
-    huidigeGebruiker.value = gebruiker;
-    if (gebruiker)
-      navigateTo(gebruiker.email === ADMIN_EMAIL ? "/admin/diensten" : "/roosters");
-  });
-});
-
-// Vertaalt Firebase auth foutcodes naar een leesbare Nederlandse foutmelding
+// Vertaalt de foutcode uit de ?error=-query naar een leesbare Nederlandse melding
 function vertaalAuthFout(foutcode) {
   switch (foutcode) {
-    case "auth/user-not-found":
-      return "Geen account gevonden met dit e-mailadres.";
-    case "auth/wrong-password":
-      return 'Onjuist wachtwoord, probeer het opnieuw. <a href="/wachtwoord-vergeten">Klik hier als je je wachtwoord bent vergeten.</a>';
     case "auth/invalid-credential":
       return 'Onjuiste inloggegevens, controleer je e-mailadres en wachtwoord. <a href="/wachtwoord-vergeten">Klik hier als je je wachtwoord bent vergeten.</a>';
     case "auth/invalid-email":
       return "Vul een geldig e-mailadres in.";
     case "auth/too-many-requests":
       return "Te veel pogingen, probeer het later opnieuw.";
-    case "auth/network-request-failed":
-      return "Geen verbinding, controleer je internetverbinding.";
     default:
       return 'Er ging iets mis bij het inloggen. Probeer het opnieuw, of <a href="mailto:info@restaurantmomos.nl">neem contact met ons op</a> als dit blijft gebeuren.';
   }
 }
 
-// Verwerkt het login formulier: zet persistence (onthoud mij) en logt in met e-mail/wachtwoord
-async function verwerkInlogFormulier() {
-  if (isBezig.value) return;
+const foutmelding = computed(() =>
+  route.query.error ? vertaalAuthFout(route.query.error) : ""
+);
 
-  foutmelding.value = "";
-  isBezig.value = true;
+const emailVeldRef = ref(null);
 
-  try {
-    await setPersistence(
-      auth,
-      onthoudMij.value ? browserLocalPersistence : browserSessionPersistence
-    );
-    await signInWithEmailAndPassword(
-      auth,
-      email.value.trim(),
-      wachtwoord.value
-    );
-  } catch (fout) {
-    foutmelding.value = vertaalAuthFout(fout.code);
-    emailVeldRef.value?.focus();
-  } finally {
-    isBezig.value = false;
-  }
-}
-
-// Logt de huidige gebruiker uit bij Firebase
-async function uitloggen() {
-  await signOut(auth);
-}
+// Zet de focus op het e-mailveld als er een foutmelding is (werkt alleen met JS, is puur een verbetering)
+onMounted(() => {
+  if (foutmelding.value) emailVeldRef.value?.focus();
+});
 </script>
 
 <template>
   <main class="login-screen">
-    <IngelogdKaart
-      v-if="huidigeGebruiker"
-      :email="huidigeGebruiker.email"
-      @uitloggen="uitloggen"
-    />
-
-    <section v-else class="login-card" aria-labelledby="login-title">
+    <section class="login-card" aria-labelledby="login-title">
       <header class="login-card__header">
         <h1 id="login-title" class="login-card__title">Welkom terug</h1>
         <p class="login-card__subtitle">
@@ -102,13 +43,13 @@ async function uitloggen() {
 
       <p v-if="foutmelding" role="alert" v-html="foutmelding"></p>
 
-      <form novalidate @submit.prevent="verwerkInlogFormulier">
+      <form method="post" action="/api/login">
         <label>
           <span>E-mailadress</span>
           <span>
             <input
               ref="emailVeldRef"
-              v-model="email"
+              name="email"
               type="email"
               autocomplete="email"
               placeholder="Jouw@naam.nl"
@@ -137,8 +78,7 @@ async function uitloggen() {
           <span>Wachtwoord</span>
           <span>
             <input
-              ref="wachtwoordVeldRef"
-              v-model="wachtwoord"
+              name="wachtwoord"
               type="password"
               autocomplete="current-password"
               placeholder="••••••"
@@ -167,29 +107,11 @@ async function uitloggen() {
         </label>
 
         <label class="onthoudmij">
-          <input v-model="onthoudMij" type="checkbox" />
+          <input name="onthoudMij" type="checkbox" />
           <span>Onthoud mij</span>
         </label>
 
-        <button class="submit-btn" type="submit" :disabled="isBezig">
-          <svg v-if="isBezig" viewBox="0 0 24 24" aria-hidden="true">
-            <circle
-              cx="12"
-              cy="12"
-              r="9"
-              stroke="currentColor"
-              stroke-width="3"
-              fill="none"
-              opacity="0.3"
-            />
-            <path
-              d="M21 12a9 9 0 0 0-9-9"
-              stroke="currentColor"
-              stroke-width="3"
-              fill="none"
-              stroke-linecap="round"
-            />
-          </svg>
+        <button class="submit-btn" type="submit">
           <span>Inloggen</span>
         </button>
       </form>
@@ -276,18 +198,6 @@ form {
 
   input {
     accent-color: var(--c-primary);
-  }
-}
-
-.submit-btn svg {
-  width: 1.1rem;
-  height: 1.1rem;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
   }
 }
 </style>

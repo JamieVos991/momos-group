@@ -1,22 +1,6 @@
 <script setup>
-import { onAuthStateChanged, signOut } from "firebase/auth";
-
-const auth = useFirebaseAuth();
 const route = useRoute();
-const huidigeGebruiker = ref(null);
-
-// Alleen de admin mag het beheerpaneel zien; anderen worden teruggestuurd
-onMounted(() => {
-  onAuthStateChanged(auth, (gebruiker) => {
-    huidigeGebruiker.value = gebruiker;
-    if (!gebruiker) navigateTo("/");
-    else if (gebruiker.email !== ADMIN_EMAIL) navigateTo("/roosters");
-  });
-});
-
-async function uitloggen() {
-  await signOut(auth);
-}
+const { user } = useUserSession();
 
 const navItems = [
   { label: "Diensten", to: "/admin/diensten" },
@@ -159,8 +143,8 @@ const navItems = [
         </NuxtLink>
       </nav>
 
-      <div v-if="huidigeGebruiker" class="admin-sidebar__footer">
-        <p class="admin-sidebar__email">{{ huidigeGebruiker.email }}</p>
+      <div v-if="user" class="admin-sidebar__footer">
+        <p class="admin-sidebar__email">{{ user.email }}</p>
 
         <div class="admin-sidebar__footer-actions">
           <button
@@ -184,32 +168,33 @@ const navItems = [
             </svg>
           </button>
 
-          <button
-            type="button"
-            class="admin-sidebar__icon-btn"
-            aria-label="Uitloggen"
-            @click="uitloggen"
-          >
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path
-                d="M12 3.5v8"
-                stroke="currentColor"
-                stroke-width="1.6"
-                stroke-linecap="round"
-              />
-              <path
-                d="M7 5.8a8 8 0 1 0 10 0"
-                stroke="currentColor"
-                stroke-width="1.6"
-                stroke-linecap="round"
-              />
-            </svg>
-          </button>
+          <form action="/api/logout" method="post">
+            <button
+              type="submit"
+              class="admin-sidebar__icon-btn"
+              aria-label="Uitloggen"
+            >
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M12 3.5v8"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M7 5.8a8 8 0 1 0 10 0"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </button>
+          </form>
         </div>
       </div>
     </aside>
 
-    <main v-if="huidigeGebruiker" id="admin-hoofdinhoud" class="admin-content">
+    <main id="admin-hoofdinhoud" class="admin-content">
       <slot />
     </main>
   </div>
@@ -305,6 +290,10 @@ const navItems = [
   display: flex;
   gap: var(--space-m);
   padding: var(--space-m) var(--space-m) 0;
+
+  form {
+    display: contents;
+  }
 }
 
 .admin-sidebar__icon-btn {

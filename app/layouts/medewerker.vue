@@ -1,22 +1,6 @@
 <script setup>
-import { onAuthStateChanged, signOut } from "firebase/auth";
-
-const auth = useFirebaseAuth();
 const route = useRoute();
-const huidigeGebruiker = ref(null);
-
-// Alleen ingelogde medewerkers mogen dit zien; admins gaan naar hun eigen dashboard
-onMounted(() => {
-  onAuthStateChanged(auth, (gebruiker) => {
-    huidigeGebruiker.value = gebruiker;
-    if (!gebruiker) navigateTo("/");
-    else if (gebruiker.email === ADMIN_EMAIL) navigateTo("/admin/diensten");
-  });
-});
-
-async function uitloggen() {
-  await signOut(auth);
-}
+const { user } = useUserSession();
 
 const navItems = [
   { label: "Diensten", to: "/roosters" },
@@ -93,8 +77,8 @@ const navItems = [
         </NuxtLink>
       </nav>
 
-      <div v-if="huidigeGebruiker" class="medewerker-sidebar__footer">
-        <p class="medewerker-sidebar__email">{{ huidigeGebruiker.email }}</p>
+      <div v-if="user" class="medewerker-sidebar__footer">
+        <p class="medewerker-sidebar__email">{{ user.email }}</p>
 
         <div class="medewerker-sidebar__footer-actions">
           <button
@@ -118,32 +102,33 @@ const navItems = [
             </svg>
           </button>
 
-          <button
-            type="button"
-            class="medewerker-sidebar__icon-btn"
-            aria-label="Uitloggen"
-            @click="uitloggen"
-          >
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path
-                d="M12 3.5v8"
-                stroke="currentColor"
-                stroke-width="1.6"
-                stroke-linecap="round"
-              />
-              <path
-                d="M7 5.8a8 8 0 1 0 10 0"
-                stroke="currentColor"
-                stroke-width="1.6"
-                stroke-linecap="round"
-              />
-            </svg>
-          </button>
+          <form action="/api/logout" method="post">
+            <button
+              type="submit"
+              class="medewerker-sidebar__icon-btn"
+              aria-label="Uitloggen"
+            >
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M12 3.5v8"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M7 5.8a8 8 0 1 0 10 0"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </button>
+          </form>
         </div>
       </div>
     </aside>
 
-    <main v-if="huidigeGebruiker" id="medewerker-hoofdinhoud" class="medewerker-content">
+    <main id="medewerker-hoofdinhoud" class="medewerker-content">
       <slot />
     </main>
   </div>
@@ -235,6 +220,10 @@ const navItems = [
   display: flex;
   gap: var(--space-m);
   padding: var(--space-m) var(--space-m) 0;
+
+  form {
+    display: contents;
+  }
 }
 
 .medewerker-sidebar__icon-btn {

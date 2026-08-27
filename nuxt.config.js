@@ -7,9 +7,11 @@ export default defineNuxtConfig({
       htmlAttrs: { lang: 'nl' }
     }
   },
-  modules: ['@pinia/nuxt'],
+  modules: ['@pinia/nuxt', 'nuxt-auth-utils'],
   css: ['~/assets/styles/stylesheet.css'],
   runtimeConfig: {
+    firebaseClientEmail: '',
+    firebasePrivateKey: '',
     public: {
       firebaseApiKey: '',
       firebaseAuthDomain: '',

@@ -352,6 +352,18 @@ async function dienstVerwijderen() {
       </div>
     </header>
 
+    <ul class="diensten-legenda">
+      <li
+        v-for="functie in functies"
+        :key="functie.key"
+        class="diensten-legenda__item"
+        :class="`sectie--${functie.key}`"
+      >
+        <span class="sectie__dot" />
+        {{ functie.label }}
+      </li>
+    </ul>
+
     <p v-if="foutmelding" class="diensten-melding">{{ foutmelding }}</p>
 
     <div class="diensten-grid">
@@ -540,6 +552,22 @@ async function dienstVerwijderen() {
   font-size: 0.85rem;
   color: hsl(0, 70%, 75%);
   padding: 0 var(--space-m) var(--space-m);
+}
+
+.diensten-legenda {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-m);
+  padding: 0 var(--space-m) var(--space-m);
+}
+
+.diensten-legenda__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: 0.75rem;
+  color: hsl(0, 0%, 75%);
 }
 
 .diensten-card__title {
