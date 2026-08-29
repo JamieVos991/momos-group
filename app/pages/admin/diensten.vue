@@ -14,10 +14,15 @@ const functies = [
 ];
 
 const firestore = useFirestore();
+
+// Alle medewerkers, live bijgehouden. Wordt gebruikt om de naam-select in de
+// dienst-modal te vullen (zie beschikbareMedewerkers verderop).
 const medewerkers = ref([]);
 let stopMedewerkersListener = null;
 
 onMounted(() => {
+  // onSnapshot luistert live mee: verandert er iets in Firestore (door wie dan
+  // ook), dan update dit scherm vanzelf, zonder dat de pagina ververst hoeft te worden.
   stopMedewerkersListener = onSnapshot(
     collection(firestore, "medewerkers"),
     (snapshot) => {
@@ -30,9 +35,13 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  // Stopt de listener zodra de pagina verlaten wordt, anders blijft hij op de
+  // achtergrond doorluisteren en lekt dat geheugen.
   stopMedewerkersListener?.();
 });
 
+// Alle diensten, omgezet naar een object per datum: { "2026-08-24": { bediening: [...], keuken: [...], spoelkeuken: [...] } }
+// Zo kan de weekgrid verderop per dag en per functie snel opzoeken wat er gepland staat.
 const dienstenData = ref({});
 const foutmelding = ref("");
 let stopDienstenListener = null;
@@ -61,6 +70,8 @@ onUnmounted(() => {
   stopDienstenListener?.();
 });
 
+// Alleen de verlofaanvragen met status "goedgekeurd", zodat het "Verlof: ..."
+// balkje per dag getoond kan worden (zie medewerkersOpVerlof hieronder).
 const goedgekeurdVerlof = ref([]);
 let stopVerlofListener = null;
 
@@ -80,6 +91,9 @@ onUnmounted(() => {
   stopVerlofListener?.();
 });
 
+// Geeft de namen terug van iedereen die op deze dag (iso-datum) goedgekeurd
+// verlof heeft. iso valt tussen start en eind van een aanvraag (beide
+// inclusief) als de dag binnen die verlofperiode valt.
 function medewerkersOpVerlof(iso) {
   return goedgekeurdVerlof.value
     .filter((v) => v.start <= iso && iso <= v.eind)
@@ -92,6 +106,9 @@ const maandLabels = [
   "jul", "aug", "sep", "okt", "nov", "dec",
 ];
 
+// Rekent terug naar de maandag van de week waar "datum" in valt (het begin
+// van de weergegeven week). getDay() geeft 0 voor zondag t/m 6 voor zaterdag,
+// vandaar de aparte -6 voor het geval van zondag.
 function geefMaandag(datum) {
   const d = new Date(datum);
   const dagNr = d.getDay();
@@ -101,10 +118,12 @@ function geefMaandag(datum) {
   return d;
 }
 
+// Leesbare datum voor op het scherm, bv. "24 aug".
 function formatDatum(d) {
   return `${d.getDate()} ${maandLabels[d.getMonth()]}`;
 }
 
+// Voor de "vandaag"-markering (donkere achtergrond) op de juiste dagkolom.
 function isVandaag(d) {
   const vandaag = new Date();
   return (
@@ -114,6 +133,9 @@ function isVandaag(d) {
   );
 }
 
+// Bouwt een datum-sleutel op zoals "2026-08-24", opzettelijk met de lokale
+// dag/maand/jaar (niet toISOString(), die rekent in UTC en zou diensten soms
+// op de verkeerde dag laten belanden).
 function isoKey(d) {
   const jaar = d.getFullYear();
   const maand = String(d.getMonth() + 1).padStart(2, "0");
@@ -121,8 +143,15 @@ function isoKey(d) {
   return `${jaar}-${maand}-${dag}`;
 }
 
+// De maandag van de week die nu getoond wordt. Wisselen van week (zie
+// vorigeWeek/volgendeWeek) betekent gewoon: deze waarde 7 dagen op- of
+// aftellen, de rest van het scherm reageert daar vanzelf op.
 const weekStart = ref(geefMaandag(new Date()));
 
+// Bouwt de 7 kolommen (ma t/m zo) van de huidige week, elk met hun eigen
+// datum, diensten en eventueel verlof. Dit is de kern van het hele rooster:
+// dagLabels wordt gecombineerd met de echte datums en de bijbehorende data
+// uit dienstenData/goedgekeurdVerlof.
 const dagen = computed(() =>
   dagLabels.map((label, i) => {
     const datum = new Date(weekStart.value);
@@ -140,6 +169,7 @@ const dagen = computed(() =>
   })
 );
 
+// Tekst bovenaan zoals "24 aug – 30 aug".
 const weekLabel = computed(() => {
   const eind = new Date(weekStart.value);
   eind.setDate(eind.getDate() + 6);
@@ -158,6 +188,9 @@ function volgendeWeek() {
   weekStart.value = d;
 }
 
+// Het agenda-icoontje opent een onzichtbaar native datum-invoerveld
+// (zie week-nav__datum-input in de template), zodat je een willekeurige
+// datum kan kiezen in plaats van steeds een week per keer te klikken.
 const datumInputRef = ref(null);
 
 function openAgenda() {
@@ -170,12 +203,17 @@ function kiesDatum(event) {
   weekStart.value = geefMaandag(new Date(event.target.value));
 }
 
+// Sneltoetsen voor veelgebruikte diensttijden in de modal.
 const presets = [
   { label: "Lunch 12:00–17:00", start: "12:00", eind: "17:00" },
   { label: "Diner 16:00–22:00", start: "16:00", eind: "22:00" },
   { label: "Dubbel 12:00–22:00", start: "12:00", eind: "22:00" },
 ];
 
+// Alle state voor de "dienst toevoegen/bewerken"-modal bij elkaar.
+// bewerkDienstId is leeg bij het toevoegen van een nieuwe dienst, en gevuld
+// met het Firestore-document-id zodra je een bestaande dienst aanklikt om 'm
+// te bewerken (dat bepaalt of dienstOpslaan straks toevoegt of bijwerkt).
 const modalOpen = ref(false);
 const modalDag = ref(null);
 const bewerkDienstId = ref(null);
@@ -187,12 +225,16 @@ const nieuweDienst = reactive({
   heleWeek: false,
 });
 
+// Alleen medewerkers tonen in de naam-select die ook echt de gekozen functie
+// hebben (bv. geen keukenpersoneel laten kiezen voor een bedieningsdienst).
 const beschikbareMedewerkers = computed(() =>
   medewerkers.value
     .filter((m) => m.functies?.includes(nieuweDienst.functie))
     .map((m) => m.naam)
 );
 
+// Als je van functie wisselt terwijl er al een naam gekozen is die niet meer
+// bij die functie past, wordt de naam-keuze automatisch leeggemaakt.
 watch(
   () => nieuweDienst.functie,
   () => {
@@ -202,6 +244,8 @@ watch(
   }
 );
 
+// Opent de modal voor een nieuwe dienst, met de aangeklikte dag/functie
+// alvast ingevuld en de rest van het formulier op de standaardwaarden.
 function openDienstModal(dag, functie) {
   modalDag.value = dag;
   bewerkDienstId.value = null;
@@ -213,6 +257,8 @@ function openDienstModal(dag, functie) {
   modalOpen.value = true;
 }
 
+// Opent dezelfde modal, maar dan gevuld met de gegevens van een bestaande
+// dienst (aangeklikt op een dienst-kaart in het rooster) om te bewerken.
 function openBewerkModal(dag, functieKey, dienst) {
   const [start, eind] = dienst.tijd.split("–");
   modalDag.value = dag;
@@ -236,6 +282,11 @@ function zetPreset(start, eind) {
 
 const opslaanBezig = ref(false);
 
+// Slaat de dienst op in Firestore. Bij bewerken (bewerkDienstId gevuld) wordt
+// alleen dat ene document bijgewerkt. Bij nieuw toevoegen wordt, als "hele
+// week" is aangevinkt, dezelfde dienst voor alle 7 dagen tegelijk aangemaakt
+// (Promise.all wacht tot alle 7 tegelijk klaar zijn), anders alleen voor de
+// aangeklikte dag.
 async function dienstOpslaan() {
   if (!nieuweDienst.start || !nieuweDienst.eind || opslaanBezig.value) return;
   opslaanBezig.value = true;
@@ -352,6 +403,7 @@ async function dienstVerwijderen() {
       </div>
     </header>
 
+    <!-- Kleurenlegenda: welk gekleurd bolletje bij welke functie hoort -->
     <ul class="diensten-legenda">
       <li
         v-for="functie in functies"
@@ -366,6 +418,8 @@ async function dienstVerwijderen() {
 
     <p v-if="foutmelding" class="diensten-melding">{{ foutmelding }}</p>
 
+    <!-- De weekgrid: 7 kolommen (dagen), elk met een header, eventueel een
+         verlof-balkje, en daaronder de diensten per functie -->
     <div class="diensten-grid">
       <div v-for="dag in dagen" :key="dag.key" class="dag-kolom">
         <div class="dag-header" :class="{ 'dag-header--vandaag': dag.vandaag }">
@@ -373,6 +427,7 @@ async function dienstVerwijderen() {
           <p class="dag-header__datum">{{ dag.datum }}</p>
         </div>
 
+        <!-- Alleen zichtbaar als er die dag iemand goedgekeurd verlof heeft -->
         <p v-if="dag.opVerlof.length" class="dag-verlof">
           <span class="dag-verlof__label">Verlof:</span> {{ dag.opVerlof.join(", ") }}
         </p>
@@ -388,6 +443,7 @@ async function dienstVerwijderen() {
             {{ functie.label.toUpperCase() }}
           </p>
 
+          <!-- Klik op een bestaande dienst-kaart opent de modal in bewerk-modus -->
           <div
             v-for="(dienst, i) in dag.diensten[functie.key]"
             :key="dienst.id || i"
@@ -398,6 +454,7 @@ async function dienstVerwijderen() {
             <p class="dienst-kaart__naam">{{ dienst.naam }}</p>
           </div>
 
+          <!-- "+"-knop opent dezelfde modal, maar dan leeg voor een nieuwe dienst -->
           <button
             type="button"
             class="dienst-toevoegen"
@@ -410,6 +467,9 @@ async function dienstVerwijderen() {
       </div>
     </div>
 
+    <!-- Modal voor toevoegen én bewerken (bepaald door bewerkDienstId). Klik
+         op de donkere achtergrond (@click.self, dus niet op de modal zelf)
+         sluit 'm ook -->
     <div v-if="modalOpen" class="dienst-modal__overlay" @click.self="sluitDienstModal">
       <div class="dienst-modal">
         <div class="dienst-modal__kop">

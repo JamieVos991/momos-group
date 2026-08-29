@@ -1,5 +1,6 @@
 <script setup>
 import { addDoc, collection, onSnapshot, query, where } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 
 definePageMeta({ layout: "medewerker" });
 
@@ -15,11 +16,13 @@ const maandLabels = [
   "jul", "aug", "sep", "okt", "nov", "dec",
 ];
 
+// "2026-08-24" wordt "24 aug".
 function formatDatum(isoDatum) {
   const [, maand, dag] = isoDatum.split("-").map(Number);
   return `${dag} ${maandLabels[maand - 1]}`;
 }
 
+// Eén dag verlof toont alleen die datum, meerdere dagen tonen "start – eind".
 function formatPeriode(start, eind) {
   return start === eind
     ? formatDatum(start)
@@ -32,66 +35,90 @@ const statusLabels = {
   afgewezen: "Afgewezen",
 };
 
+// medewerker: het eigen medewerkers-document, nodig om te weten onder welke
+// "naam" de verlofaanvragen in Firestore staan (aanvragen zijn gekoppeld op
+// naam, niet op e-mailadres).
 const medewerker = ref(null);
 const aanvragen = ref([]);
 const laden = ref(true);
 const foutmelding = ref("");
 
+let stopAuthListener = null;
 let stopMedewerkerListener = null;
 let stopAanvragenListener = null;
 
 onMounted(() => {
-  const email = auth.currentUser?.email;
-  if (!email) {
-    laden.value = false;
-    return;
-  }
-
-  stopMedewerkerListener = onSnapshot(
-    query(collection(firestore, "medewerkers"), where("email", "==", email.toLowerCase())),
-    (snapshot) => {
-      medewerker.value = snapshot.docs[0]?.data() ?? null;
-
-      stopAanvragenListener?.();
-      if (!medewerker.value) {
-        laden.value = false;
-        return;
-      }
-
-      stopAanvragenListener = onSnapshot(
-        query(collection(firestore, "verlofaanvragen"), where("naam", "==", medewerker.value.naam)),
-        (aanvragenSnapshot) => {
-          aanvragen.value = aanvragenSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-          laden.value = false;
-          foutmelding.value = "";
-        },
-        () => {
-          laden.value = false;
-          foutmelding.value = "Kon je verlofaanvragen niet laden. Controleer de Firestore-rechten.";
-        }
-      );
-    },
-    () => {
+  // Sinds inloggen via een echte server-post/redirect gaat (i.p.v. een
+  // client-side navigatie), laadt deze pagina soms opnieuw op vóórdat de
+  // Firebase-client zijn ingelogde status uit opslag heeft teruggehaald.
+  // auth.currentUser synchroon uitlezen is dan onbetrouwbaar (kan nog even
+  // null zijn); onAuthStateChanged wacht wél netjes tot Firebase het echte
+  // antwoord heeft, en roept deze functie daarna pas aan.
+  stopAuthListener = onAuthStateChanged(auth, (gebruiker) => {
+    stopMedewerkerListener?.();
+    const email = gebruiker?.email;
+    if (!email) {
       laden.value = false;
-      foutmelding.value = "Kon je gegevens niet laden. Controleer de Firestore-rechten.";
+      return;
     }
-  );
+
+    // Stap 1: zoek het medewerkers-document bij dit e-mailadres op, om de naam
+    // te weten. Stap 2 (hieronder, genest): pas als die naam bekend is, kan
+    // pas gezocht worden naar de verlofaanvragen die bij die naam horen.
+    stopMedewerkerListener = onSnapshot(
+      query(collection(firestore, "medewerkers"), where("email", "==", email.toLowerCase())),
+      (snapshot) => {
+        medewerker.value = snapshot.docs[0]?.data() ?? null;
+
+        stopAanvragenListener?.();
+        if (!medewerker.value) {
+          laden.value = false;
+          return;
+        }
+
+        stopAanvragenListener = onSnapshot(
+          query(collection(firestore, "verlofaanvragen"), where("naam", "==", medewerker.value.naam)),
+          (aanvragenSnapshot) => {
+            aanvragen.value = aanvragenSnapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+            laden.value = false;
+            foutmelding.value = "";
+          },
+          () => {
+            laden.value = false;
+            foutmelding.value = "Kon je verlofaanvragen niet laden. Controleer de Firestore-rechten.";
+          }
+        );
+      },
+      () => {
+        laden.value = false;
+        foutmelding.value = "Kon je gegevens niet laden. Controleer de Firestore-rechten.";
+      }
+    );
+  });
 });
 
 onUnmounted(() => {
+  stopAuthListener?.();
   stopMedewerkerListener?.();
   stopAanvragenListener?.();
 });
 
+// Oudste aanvraag bovenaan, zonder de originele aanvragen-array te wijzigen
+// (vandaar de kopie via [...aanvragen.value] voordat er gesorteerd wordt).
 const gesorteerdeAanvragen = computed(() =>
   [...aanvragen.value].sort((a, b) => a.start.localeCompare(b.start))
 );
 
+// De in te vullen aanvraag zelf, en per veld of het al is "aangeraakt"
+// (verlaten na invullen) — dat laatste bepaalt wanneer een veld pas rood/groen
+// gekleurd wordt, zodat een leeg formulier bij het openen niet meteen als
+// "fout" oogt.
 const nieuweAanvraag = reactive({ start: "", eind: "", reden: "" });
 const aangeraakt = reactive({ start: false, eind: false, reden: false });
 const verstuurd = ref(false);
 const verzendBezig = ref(false);
 
+// Alle drie de velden moeten ingevuld zijn voordat de verstuur-knop actief wordt.
 const isGeldig = computed(
   () => nieuweAanvraag.start && nieuweAanvraag.eind && nieuweAanvraag.reden.trim()
 );
@@ -100,6 +127,8 @@ function markeerAangeraakt(veld) {
   aangeraakt[veld] = true;
 }
 
+// Geeft de juiste CSS-klasse voor een veld: nog niks (nog niet aangeraakt),
+// geldig (ingevuld) of ongeldig (aangeraakt maar leeg gelaten).
 function veldStatusKlasse(veld) {
   if (!aangeraakt[veld]) return "";
   const waarde =
@@ -107,6 +136,9 @@ function veldStatusKlasse(veld) {
   return waarde ? "verlof-form__veld--geldig" : "verlof-form__veld--ongeldig";
 }
 
+// Slaat de nieuwe aanvraag op in Firestore met status "behandeling" (de admin
+// moet 'm nog beoordelen), en maakt daarna het formulier weer leeg zodat er
+// meteen een volgende aanvraag ingevuld kan worden.
 async function versturen() {
   if (!isGeldig.value || !medewerker.value || verzendBezig.value) return;
   verzendBezig.value = true;

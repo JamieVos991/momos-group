@@ -1,5 +1,6 @@
 <script setup>
 import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 
 definePageMeta({ layout: "medewerker" });
 
@@ -88,60 +89,71 @@ const laden = ref(true);
 const medewerker = ref(null);
 const dienstenData = ref({});
 
+let stopAuthListener = null;
 let stopMedewerkerListener = null;
 let stopDienstenListener = null;
 
 onMounted(() => {
-  const email = auth.currentUser?.email;
-  if (!email) {
-    laden.value = false;
-    return;
-  }
-
-  stopMedewerkerListener = onSnapshot(
-    query(collection(firestore, "medewerkers"), where("email", "==", email.toLowerCase())),
-    (snapshot) => {
-      medewerker.value = snapshot.docs[0]?.data() ?? null;
-
-      stopDienstenListener?.();
-      if (!medewerker.value) {
-        laden.value = false;
-        return;
-      }
-
-      stopDienstenListener = onSnapshot(
-        query(collection(firestore, "diensten"), where("naam", "==", medewerker.value.naam)),
-        (dienstenSnapshot) => {
-          const nieuw = {};
-          dienstenSnapshot.docs.forEach((d) => {
-            const data = d.data();
-            if (!nieuw[data.datum]) {
-              nieuw[data.datum] = { bediening: [], keuken: [], spoelkeuken: [] };
-            }
-            nieuw[data.datum][data.functie]?.push({
-              tijd: data.tijd,
-              naam: data.naam,
-              id: d.id,
-            });
-          });
-          dienstenData.value = nieuw;
-          laden.value = false;
-          foutmelding.value = "";
-        },
-        () => {
-          laden.value = false;
-          foutmelding.value = "Kon je rooster niet laden. Controleer de Firestore-rechten.";
-        }
-      );
-    },
-    () => {
+  // Sinds inloggen via een echte server-post/redirect gaat (i.p.v. een
+  // client-side navigatie), laadt deze pagina soms opnieuw op vóórdat de
+  // Firebase-client zijn ingelogde status uit opslag heeft teruggehaald.
+  // auth.currentUser synchroon uitlezen is dan onbetrouwbaar (kan nog even
+  // null zijn); onAuthStateChanged wacht wél netjes tot Firebase het echte
+  // antwoord heeft, en roept deze functie daarna pas aan.
+  stopAuthListener = onAuthStateChanged(auth, (gebruiker) => {
+    stopMedewerkerListener?.();
+    const email = gebruiker?.email;
+    if (!email) {
       laden.value = false;
-      foutmelding.value = "Kon je gegevens niet laden. Controleer de Firestore-rechten.";
+      return;
     }
-  );
+
+    stopMedewerkerListener = onSnapshot(
+      query(collection(firestore, "medewerkers"), where("email", "==", email.toLowerCase())),
+      (snapshot) => {
+        medewerker.value = snapshot.docs[0]?.data() ?? null;
+
+        stopDienstenListener?.();
+        if (!medewerker.value) {
+          laden.value = false;
+          return;
+        }
+
+        stopDienstenListener = onSnapshot(
+          query(collection(firestore, "diensten"), where("naam", "==", medewerker.value.naam)),
+          (dienstenSnapshot) => {
+            const nieuw = {};
+            dienstenSnapshot.docs.forEach((d) => {
+              const data = d.data();
+              if (!nieuw[data.datum]) {
+                nieuw[data.datum] = { bediening: [], keuken: [], spoelkeuken: [] };
+              }
+              nieuw[data.datum][data.functie]?.push({
+                tijd: data.tijd,
+                naam: data.naam,
+                id: d.id,
+              });
+            });
+            dienstenData.value = nieuw;
+            laden.value = false;
+            foutmelding.value = "";
+          },
+          () => {
+            laden.value = false;
+            foutmelding.value = "Kon je rooster niet laden. Controleer de Firestore-rechten.";
+          }
+        );
+      },
+      () => {
+        laden.value = false;
+        foutmelding.value = "Kon je gegevens niet laden. Controleer de Firestore-rechten.";
+      }
+    );
+  });
 });
 
 onUnmounted(() => {
+  stopAuthListener?.();
   stopMedewerkerListener?.();
   stopDienstenListener?.();
 });

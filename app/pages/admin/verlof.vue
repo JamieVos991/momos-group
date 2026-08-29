@@ -14,11 +14,13 @@ const maandLabels = [
   "jul", "aug", "sep", "okt", "nov", "dec",
 ];
 
+// "2026-08-24" wordt "24 aug".
 function formatDatum(isoDatum) {
   const [, maand, dag] = isoDatum.split("-").map(Number);
   return `${dag} ${maandLabels[maand - 1]}`;
 }
 
+// Eén dag verlof toont alleen die datum, meerdere dagen tonen "start – eind".
 function formatPeriode(start, eind) {
   return start === eind
     ? formatDatum(start)
@@ -31,9 +33,13 @@ const statusLabels = {
   afgewezen: "Afgewezen",
 };
 
+// Alle verlofaanvragen van iedereen (in tegenstelling tot de medewerker-versie
+// van deze pagina, die alleen de eigen aanvragen ophaalt).
 const aanvragen = ref([]);
 const laden = ref(true);
 const foutmelding = ref("");
+// Per aanvraag-id bijhouden of er net een goedkeuren/afwijzen-actie loopt,
+// zodat alleen de knoppen van díe ene aanvraag uitgeschakeld worden.
 const bezig = ref({});
 
 let stopListener = null;
@@ -57,6 +63,9 @@ onUnmounted(() => {
   stopListener?.();
 });
 
+// Splitst alle aanvragen in twee lijstjes voor de twee secties op het scherm:
+// wat nog beoordeeld moet worden (oudste eerst, urgentste bovenaan), en wat
+// al afgehandeld is (nieuwste eerst, als geschiedenis).
 const inBehandeling = computed(() =>
   aanvragen.value
     .filter((a) => a.status === "behandeling")
@@ -69,6 +78,8 @@ const afgehandeld = computed(() =>
     .sort((a, b) => b.start.localeCompare(a.start))
 );
 
+// Werkt de status van één aanvraag bij ("goedgekeurd" of "afgewezen"),
+// aangeroepen door de Goedkeuren/Afwijzen-knoppen hieronder.
 async function beslissen(id, status) {
   bezig.value[id] = true;
   try {
